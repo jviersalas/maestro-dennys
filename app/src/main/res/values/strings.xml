@@ -1,3 +1,91 @@
 <resources>
     <string name="app_name">DGuitar</string>
+
+    <string name="note_c">C</string>
+    <string name="mode_scale">Escala</string>
+    <string name="tuner">Afinador</string>
+    <string name="color">Color</string>
+    <string name="sequence">Secuencia</string>
+    <string name="chords">Acordes</string>
+    <string name="degrees">Grados</string>
+    <string name="pick">Púa</string>
+    <string name="settings">Ajustes</string>
+    <string name="fretboard_description">Mástil de guitarra</string>
+
+    <string name="improvisation">Improvisación</string>
+    <string name="back">Volver</string>
+    <string name="back_symbol">‹</string>
+    <string name="improv_subtitle_placeholder">Guitarra · Intro</string>
+    <string name="tempo_description">Cambiar tempo, 80 BPM</string>
+    <string name="tempo_placeholder">80</string>
+    <string name="metronome_enable">Activar metrónomo</string>
+    <string name="colors_show_scale">Mostrar colores de la escala</string>
+    <string name="degrees_show_chord">Mostrar grados del acorde</string>
+    <string name="play_progression">Reproducir progresión</string>
+    <string name="bar_placeholder">Compás 1 / 1</string>
+    <string name="improvisations">Improvisaciones</string>
+    <string name="progression">Progresión</string>
+    <string name="tonic_placeholder">Tónica A</string>
+    <string name="scale_placeholder">Pentatónica menor</string>
+    <string name="chord">Acorde</string>
+    <string name="improv_fretboard_description">Mástil para improvisar</string>
+
+    <string name="tuner_hint">Toca una cuerda al aire</string>
+    <string name="auto">Auto</string>
+    <string name="close">Cerrar</string>
+    <string name="tuner_gauge_description">Medidor de afinación</string>
+    <string name="in_tune">✓ EN TONO</string>
+    <string name="hz_placeholder">Hz —</string>
+    <string name="note_placeholder">—</string>
+    <string name="cents_placeholder">— cents</string>
+    <string name="listening">Escuchando…</string>
+    <string name="enable_microphone">Activar micrófono</string>
+
+    <string name="logo_description">Maestro Dennys</string>
+    <string name="choose_instrument">Elige tu instrumento</string>
+    <string name="choose_instrument_subtitle">Configura el mástil para guitarra o bajo</string>
+    <string name="guitar_card">Guitarra\n6 cuerdas</string>
+    <string name="bass_card">Bajo\n4 o 5 cuerdas</string>
+    <string name="change_later">Podrás cambiarlo después desde el mástil</string>
+
+    <string name="harmonic_circle">Círculo armónico</string>
+    <string name="harmonic_circle_placeholder">C mayor · tríadas</string>
+    <string name="all">Todos</string>
+    <string name="none">Ninguno</string>
+    <string name="sevenths">Séptimas</string>
+    <string name="harmonic_circle_hint">Toca un grado para activarlo. Mantén pulsado para cambiar Mayor/Menor.</string>
+
+    <string name="library_subtitle_placeholder">Guitarra · 1 guardada</string>
+    <string name="library_hint">Toca una improvisación para cargarla. Mantén pulsado para renombrar o eliminar.</string>
+    <string name="new_improvisation">＋ Nueva improvisación</string>
+
+    <string name="sections">Secciones</string>
+    <string name="section_chords">Acordes de la sección</string>
+    <string name="progression_hint">Mantén pulsado un chip para renombrar, editar o eliminar.</string>
+
+    <string name="tonic">Tónica</string>
+    <string name="quality">Calidad</string>
+    <string name="principal_only">Solo nota principal (más grave)</string>
+    <string name="bars_per_chord">Compases por acorde</string>
+    <string name="hits_per_bar">Toques por compás</string>
+
+    <string name="automatic">Automático</string>
+    <string name="microphone_permission_needed">Permiso de micrófono necesario para afinar</string>
+    <string name="microphone_start_failed">No se pudo iniciar el micrófono</string>
+    <string name="retry">Reintentar</string>
+    <string name="string_status">Cuerda %1$s</string>
+    <string name="waiting_status">Cuerda %1$s · Esperando…</string>
+    <string name="auto_mode_on">Modo automático activado</string>
+    <string name="auto_mode_off">Volver a modo automático</string>
+
+    <string name="stop">Detener</string>
+    <string name="sequence_playing_note">Detener · %1$s</string>
+    <string name="no_colors">Sin colores</string>
+    <string name="tempo_value">%1$d</string>
+    <string name="tonic_value">Tónica %1$s</string>
+    <string name="no_chords">Sin acordes</string>
+    <string name="no_bars">Sin compases</string>
+    <string name="no_active_bar">Sin compás activo</string>
+    <string name="bar_indicator">Compás %1$d / %2$d</string>
+    <string name="tempo_description_value">Cambiar tempo, %1$d BPM</string>
 </resources>

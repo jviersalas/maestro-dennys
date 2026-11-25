@@ -16,7 +16,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Secciones"
+            android:text="@string/sections"
             android:textColor="@color/text_secondary"
             android:textSize="12sp" />
 
@@ -38,7 +38,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:text="Acordes de la sección"
+            android:text="@string/section_chords"
             android:textColor="@color/text_secondary"
             android:textSize="12sp" />
 
@@ -60,7 +60,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="Mantén pulsado un chip para renombrar, editar o eliminar."
+            android:text="@string/progression_hint"
             android:textColor="@color/text_muted"
             android:textSize="11sp" />
     </LinearLayout>

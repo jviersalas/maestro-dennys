@@ -10,28 +10,36 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.ImageView
 import android.widget.ProgressBar
 import androidx.appcompat.app.AppCompatActivity
+import apk.mavier.dguitar.domain.di.DependencyProvider
+import apk.mavier.dguitar.domain.repository.SettingsRepository
+import apk.mavier.dguitar.presentation.main.MainActivity
 
 /**
- * Branded splash screen. Shows the Dennys logo for four seconds before
- * handing control to the main fretboard screen.
+ * Branded splash screen. Shows the Dennys logo briefly, then opens the
+ * onboarding the first time and the fretboard on later launches.
  */
 class SplashActivity : AppCompatActivity() {
 
     private val handler = Handler(Looper.getMainLooper())
+    private lateinit var settingsRepository: SettingsRepository
     private var launched = false
 
     private val openMain = Runnable {
         if (launched || isFinishing || isDestroyed) return@Runnable
         launched = true
-        startActivity(Intent(this, InstrumentActivity::class.java))
-        @Suppress("DEPRECATION")
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        val destination = if (settingsRepository.hasCompletedOnboarding()) {
+            MainActivity::class.java
+        } else {
+            InstrumentActivity::class.java
+        }
+        startActivity(Intent(this, destination))
         finish()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_splash)
+        settingsRepository = (application as DependencyProvider).settingsRepository
 
         val logo = findViewById<ImageView>(R.id.logo)
         val progress = findViewById<ProgressBar>(R.id.progress)
@@ -62,7 +70,7 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private companion object {
-        const val SPLASH_DURATION_MS = 4000L
+        const val SPLASH_DURATION_MS = 1_200L
     }
 }
 

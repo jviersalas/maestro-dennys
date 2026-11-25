@@ -28,7 +28,7 @@
                 android:ellipsize="end"
                 android:fontFamily="sans-serif-medium"
                 android:maxLines="1"
-                android:text="Afinador"
+                android:text="@string/tuner"
                 android:textColor="@color/text_primary"
                 android:textSize="22sp" />
 
@@ -39,7 +39,7 @@
                 android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:text="Toca una cuerda al aire"
+                android:text="@string/tuner_hint"
                 android:textColor="@color/text_secondary"
                 android:textSize="12sp" />
         </LinearLayout>
@@ -50,14 +50,14 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
-            android:text="Auto" />
+            android:text="@string/auto" />
 
         <TextView
             android:id="@+id/closeButton"
             style="@style/ChipButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Cerrar" />
+            android:text="@string/close" />
     </LinearLayout>
 
     <apk.mavier.dguitar.presentation.ui.TunerGaugeView
@@ -66,7 +66,7 @@
         android:layout_height="0dp"
         android:layout_marginTop="8dp"
         android:layout_weight="1"
-        android:contentDescription="Medidor de afinación"
+        android:contentDescription="@string/tuner_gauge_description"
         android:minHeight="180dp" />
 
     <TextView
@@ -78,8 +78,8 @@
         android:fontFamily="sans-serif-medium"
         android:gravity="center"
         android:includeFontPadding="false"
-        android:text="✓ EN TONO"
-        android:textColor="#3DDC97"
+        android:text="@string/in_tune"
+        android:textColor="@color/success"
         android:textSize="14sp"
         android:visibility="invisible" />
 
@@ -97,7 +97,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:gravity="start"
-            android:text="Hz —"
+            android:text="@string/hz_placeholder"
             android:textColor="@color/text_secondary"
             android:textSize="16sp" />
 
@@ -108,7 +108,7 @@
             android:fontFamily="sans-serif-medium"
             android:gravity="center"
             android:includeFontPadding="false"
-            android:text="—"
+            android:text="@string/note_placeholder"
             android:textColor="@color/text_primary"
             android:textSize="72sp" />
 
@@ -118,7 +118,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:gravity="end"
-            android:text="— cents"
+            android:text="@string/cents_placeholder"
             android:textColor="@color/text_secondary"
             android:textSize="16sp" />
     </LinearLayout>
@@ -137,7 +137,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
         android:gravity="center"
-        android:text="Escuchando…"
+        android:text="@string/listening"
         android:textColor="@color/text_secondary"
         android:textSize="13sp" />
 
@@ -148,6 +148,6 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
         android:layout_marginTop="8dp"
-        android:text="Activar micrófono"
+        android:text="@string/enable_microphone"
         android:visibility="gone" />
 </LinearLayout>

@@ -2,8 +2,8 @@ package apk.mavier.dguitar.data.repository
 
 import android.content.Context
 import android.content.SharedPreferences
+import apk.mavier.dguitar.data.preferences.HarmonicCircleCodec
 import apk.mavier.dguitar.data.preferences.PreferenceKeys
-import apk.mavier.dguitar.domain.model.ChordQuality
 import apk.mavier.dguitar.domain.model.Chords
 import apk.mavier.dguitar.domain.model.FretboardConfig
 import apk.mavier.dguitar.domain.model.Scales
@@ -49,11 +49,11 @@ class SharedPreferencesSettingsRepository(context: Context) : SettingsRepository
             useFlats = prefs.getBoolean(PreferenceKeys.FLATS, true),
             colorsEnabled = prefs.getBoolean(PreferenceKeys.COLORS, true),
             showDegrees = prefs.getBoolean(PreferenceKeys.DEGREES, true),
-            circleDegrees = parseCircleDegrees(
+            circleDegrees = HarmonicCircleCodec.parseDegrees(
                 prefs.getString(PreferenceKeys.CIRCLE_DEGREES, "")
             ),
             circleSevenths = prefs.getBoolean(PreferenceKeys.CIRCLE_SEVENTHS, false),
-            circleOverrides = parseCircleOverrides(
+            circleOverrides = HarmonicCircleCodec.parseOverrides(
                 prefs.getString(PreferenceKeys.CIRCLE_OVERRIDES, "")
             ),
             selectedPattern = if (patternValue in 1..5) patternValue else null,
@@ -73,12 +73,12 @@ class SharedPreferencesSettingsRepository(context: Context) : SettingsRepository
             .putBoolean(PreferenceKeys.DEGREES, config.showDegrees)
             .putString(
                 PreferenceKeys.CIRCLE_DEGREES,
-                config.circleDegrees.sorted().joinToString(",")
+                HarmonicCircleCodec.encodeDegrees(config.circleDegrees)
             )
             .putBoolean(PreferenceKeys.CIRCLE_SEVENTHS, config.circleSevenths)
             .putString(
                 PreferenceKeys.CIRCLE_OVERRIDES,
-                encodeCircleOverrides(config.circleOverrides)
+                HarmonicCircleCodec.encodeOverrides(config.circleOverrides)
             )
             .remove(PreferenceKeys.LEGACY_OVERLAY_ROOTS)
             .remove(PreferenceKeys.LEGACY_OVERLAY_QUALITY)
@@ -87,29 +87,10 @@ class SharedPreferencesSettingsRepository(context: Context) : SettingsRepository
             .apply()
     }
 
-    private fun parseCircleDegrees(value: String?): Set<Int> =
-        value.orEmpty()
-            .split(",")
-            .mapNotNull { it.trim().toIntOrNull() }
-            .filter { it in 1..7 }
-            .toSet()
+    override fun hasCompletedOnboarding(): Boolean =
+        prefs.getBoolean(PreferenceKeys.ONBOARDING_COMPLETED, false)
 
-    private fun parseCircleOverrides(value: String?): Map<Int, ChordQuality> {
-        if (value.isNullOrBlank()) return emptyMap()
-        return value.split(";").mapNotNull { part ->
-            val pieces = part.split(":")
-            if (pieces.size != 2) return@mapNotNull null
-            val degree = pieces[0].trim().toIntOrNull() ?: return@mapNotNull null
-            val index = pieces[1].trim().toIntOrNull() ?: return@mapNotNull null
-            val quality = Chords.all.getOrNull(index) ?: return@mapNotNull null
-            if (degree !in 1..7) null else degree to quality
-        }.toMap()
+    override fun setOnboardingCompleted(completed: Boolean) {
+        prefs.edit().putBoolean(PreferenceKeys.ONBOARDING_COMPLETED, completed).apply()
     }
-
-    private fun encodeCircleOverrides(overrides: Map<Int, ChordQuality>): String =
-        overrides.entries
-            .sortedBy { it.key }
-            .joinToString(";") { (degree, quality) ->
-                "$degree:${Chords.all.indexOf(quality)}"
-            }
 }

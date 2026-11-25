@@ -12,7 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:fontFamily="sans-serif-medium"
-        android:text="Círculo armónico"
+        android:text="@string/harmonic_circle"
         android:textColor="@color/text_primary"
         android:textSize="20sp" />
 
@@ -23,7 +23,7 @@
         android:layout_marginTop="2dp"
         android:ellipsize="end"
         android:maxLines="1"
-        android:text="C mayor · tríadas"
+        android:text="@string/harmonic_circle_placeholder"
         android:textColor="@color/text_secondary"
         android:textSize="12sp" />
 
@@ -44,7 +44,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
-                android:text="Todos" />
+                android:text="@string/all" />
 
             <TextView
                 android:id="@+id/toggleNoneButton"
@@ -52,14 +52,14 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
-                android:text="Ninguno" />
+                android:text="@string/none" />
 
             <TextView
                 android:id="@+id/seventhsButton"
                 style="@style/ChipButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Séptimas" />
+                android:text="@string/sevenths" />
         </LinearLayout>
     </HorizontalScrollView>
 
@@ -81,7 +81,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Toca un grado para activarlo. Mantén pulsado para cambiar Mayor/Menor."
+        android:text="@string/harmonic_circle_hint"
         android:textColor="@color/text_muted"
         android:textSize="11sp" />
 </LinearLayout>

@@ -23,6 +23,26 @@
 > mástil lo que suena, explica el *por qué* de cada nota y convierte la teoría
 > musical en algo que se ve, se escucha y se toca.
 
+## Novedades
+
+- **Onboarding una sola vez**: la primera vez eliges guitarra o bajo; en los
+  siguientes arranques la app abre directo en el mástil.
+- **Improvisación más completa**: varias progresiones guardadas por instrumento,
+  metrónomo con acento, capas independientes de escala/acorde/colores/grados,
+  tónica y escala configurables, y la posibilidad de tocar el mástil para
+  escuchar cada nota, también en guitarra.
+- **Afinador mejorado**: modo automático con detección de cuerda, modo manual,
+  indicador **EN TONO** y manejo del permiso de micrófono.
+- **Círculo armónico**: tríadas o séptimas, selección de grados y cambio de
+  calidad (diatónica, mayor o menor) manteniendo pulsado.
+- **Rendimiento**: el mástil cachea geometría, voicings y modelo de dibujo para
+  no recalcular por frame; la improvisación reutiliza su línea de tiempo.
+- **Release optimizado**: R8 activo; el APK de release pesa ~1.9 MB frente a
+  ~9 MB del debug.
+- **Calidad**: tests unitarios del dominio y GitHub Actions para tests, lint y
+  build.
+- **Textos centralizados** en `strings.xml`, listos para futuras traducciones.
+
 ## Ficha rápida
 
 | | |
@@ -33,18 +53,24 @@
 | **Afinaciones** | Estándar, Drop D, medio tono abajo, DADGAD, Open G, Open E |
 | **Escalas** | 51 escalas y modos |
 | **Acordes** | 24 tipos de acorde |
+| **Improvisación** | 40–220 BPM · progresiones guardadas · metrónomo |
+| **Tests** | Dominio, audio, geometría del mástil y playback |
+| **CI** | GitHub Actions (tests + lint + build) |
+| **Release** | R8 activo (~1.9 MB) |
 | **Idioma** | Español |
 
 ## Contenido
 
-1. [Escalas](#escalas)
-2. [Acordes](#acordes)
-3. [Armonización](#armonización)
-4. [Improvisación](#improvisación)
-5. [Otras herramientas](#otras-herramientas)
-6. [Cómo ejecutar](#cómo-ejecutar)
-7. [Estructura del proyecto](#estructura-del-proyecto)
-8. [Sobre Dennys Ruiz](#sobre-dennys-ruiz)
+1. [Novedades](#novedades)
+2. [Escalas](#escalas)
+3. [Acordes](#acordes)
+4. [Armonización](#armonización)
+5. [Improvisación](#improvisación)
+6. [Otras herramientas](#otras-herramientas)
+7. [Calidad y pruebas](#calidad-y-pruebas)
+8. [Cómo ejecutar](#cómo-ejecutar)
+9. [Estructura del proyecto](#estructura-del-proyecto)
+10. [Sobre Dennys Ruiz](#sobre-dennys-ruiz)
 
 ---
 
@@ -52,7 +78,9 @@
 
 Las escalas se dibujan sobre el mástil con la tónica, los grados (1, b3, 5…)
 y la fórmula de intervalos. Puedes escuchar la escala completa en secuencia,
-subiendo y bajando, y ver las posiciones del patrón CAGED.
+subiendo y bajando, y ver las posiciones del patrón CAGED. Al abrir por primera
+vez se parte de la **pentatónica menor**; puedes cambiar de escala, tónica,
+patrón, colores y grados desde la barra superior.
 
 Algunas escalas base:
 
@@ -138,24 +166,63 @@ En la app puedes:
 
 Un laboratorio para crear progresiones por secciones y practicar sobre ellas:
 
-- **Secciones y acordes** propios (tónica + calidad).
-- **Tempo ajustable** entre **40 y 220 BPM**.
+- **Biblioteca por instrumento**: crea, renombra, elimina y cambia entre varias
+  progresiones; guitarra y bajo guardan las suyas por separado.
+- **Secciones y acordes** propios (tónica + calidad), con compases por acorde.
+- **Tempo ajustable** entre **40 y 220 BPM**, recordado por instrumento.
+- **Metrónomo** con acento en el primer tiempo.
 - Por cada acorde:
   - **Nota principal:** toca solo la nota más grave (la raíz del acorde).
   - **Arreglo:** toca las notas del acorde en arpegio (por defecto).
   - **Toques por compás:** **8, 4, 2 o 1**, repartidos dentro del compás.
-- El mástil resalta el acorde actual y el siguiente mientras suena la progresión.
+- **Capas independientes**: escala, notas del acorde, colores y grados se pueden
+  mostrar u ocultar por separado.
+- **Tónica y escala** de improvisación configurables; la tónica puede seguir
+  automáticamente al primer acorde de la progresión.
+- **Toca el mástil** para escuchar la nota, tanto en guitarra como en bajo.
+- El mástil resalta el acorde actual y el siguiente mientras suena la progresión,
+  con barra de progreso por compás.
 
 ---
 
 ## Otras herramientas
 
-- **Afinador** cromático con detección de tono en tiempo real.
+- **Afinador cromático** con detección de tono en tiempo real:
+  - modo **automático** que elige la cuerda más cercana con histéresis,
+  - modo **manual** tocando una cuerda de la fila,
+  - lectura de Hz y cents, tolerancia de ±5 cents e indicador **EN TONO**.
 - **Modo libre** para explorar el mástil sin colores ni filtros.
-- **Audio sintetizado** de cuerda pulsada para escuchar cada nota.
-- **Colores por grado** para reconocer la función de cada nota de un vistazo.
+- **Audio sintetizado** de cuerda pulsada (Karplus–Strong) para escuchar cada
+  nota, con modo bajo.
+- **Secuencia** de escala (subida y bajada) y **púa** de acordes.
+- **Patrones CAGED** seleccionables desde el mástil.
+- **Colores por grado** y **badges de grados** para reconocer la función de cada
+  nota de un vistazo.
 
 ---
+
+## Calidad y pruebas
+
+El proyecto incluye tests JVM para la lógica que no depende de Android:
+
+- teoría musical, escalas, acordes y grados,
+- posiciones, secuencias y patrones CAGED,
+- círculo armónico y codecs de preferencias,
+- improvisación, línea de tiempo, playback y reproductor de secuencias,
+- geometría del mástil, voicings y detección de cejillas,
+- analizador de tono (YIN), afinador y resolución de cuerda.
+
+Comandos útiles:
+
+```bash
+./gradlew testDebugUnitTest   # tests unitarios
+./gradlew lintDebug           # análisis estático
+./gradlew assembleDebug       # APK de desarrollo
+./gradlew assembleRelease     # APK release con R8
+```
+
+El flujo de **GitHub Actions** (`.github/workflows/android.yml`) ejecuta tests,
+lint y build en cada push a `develop`/`main` y en cada pull request.
 
 ## Cómo ejecutar
 
@@ -178,8 +245,20 @@ Compilar por consola:
 
 El APK se genera como `maestro-dennys-debug.apk`.
 
+Para una build de distribución:
+
+```bash
+./gradlew assembleRelease
+```
+
+El APK release se genera como `maestro-dennys.apk`, con **R8** y reducción de
+recursos activos (~1.9 MB). El `debug` no se minifica y pesa más (~9 MB); es
+normal.
+
 > El archivo `keystore.properties` y los `.jks` **no** se versionan. La firma de
-> release se configura localmente.
+> release se configura localmente. Si publicas el APK, guarda
+> `app/build/outputs/mapping/release/mapping.txt` para desofuscar futuros
+> reportes de fallos.
 
 ---
 
@@ -187,21 +266,27 @@ El APK se genera como `maestro-dennys-debug.apk`.
 
 ```
 app/src/main/java/apk/mavier/dguitar/
-├── core/audio/          Síntesis y análisis de audio
+├── core/audio/          Síntesis (Karplus–Strong) y análisis de tono (YIN)
 ├── domain/
-│   ├── model/           Música, escalas, acordes, CAGED, armonización
+│   ├── model/           Música, escalas, acordes, CAGED, armonización,
+│   │                    voicings, timeline, afinador
 │   ├── repository/      Contratos de datos
 │   └── usecase/         Casos de uso (círculo armónico, improvisación)
 ├── data/
-│   ├── preferences/     Claves de preferencias
+│   ├── preferences/     Claves y codecs de preferencias
 │   └── repository/      Implementación con SharedPreferences
 └── presentation/
-    ├── main/            Mástil, escalas, acordes y círculo armónico
-    ├── improvisation/   Progresiones y reproducción
+    ├── common/          Scheduler, reproductor de notas, menús y etiquetas
+    ├── main/            Mástil, escalas, acordes y diálogo del círculo armónico
+    ├── improvisation/   Progresiones, ViewModel, playback y arpegio
     ├── tuner/           Afinador
-    ├── onboarding/      Selección de instrumento
-    └── ui/              Vistas del mástil y del afinador
+    ├── onboarding/      Splash y selección de instrumento
+    └── ui/              Vistas del mástil, geometría y modelo de render
 ```
+
+Los tests JVM viven en `app/src/test/java/apk/mavier/dguitar/` y cubren dominio,
+audio, geometría, playback y codecs. El flujo de CI está en
+`.github/workflows/android.yml`.
 
 ---
 
