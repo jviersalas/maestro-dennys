@@ -18,4 +18,6 @@ interface ImprovisationRepository {
     fun saveShowScale(show: Boolean)
     fun loadShowChord(): Boolean
     fun saveShowChord(show: Boolean)
+    fun loadShowColors(): Boolean
+    fun saveShowColors(show: Boolean)
 }

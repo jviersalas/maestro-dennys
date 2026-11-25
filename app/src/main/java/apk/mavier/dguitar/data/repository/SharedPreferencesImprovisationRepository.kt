@@ -128,6 +128,13 @@ class SharedPreferencesImprovisationRepository(context: Context) :
         prefs.edit().putBoolean(PreferenceKeys.IMPROV_SHOW_CHORD, show).apply()
     }
 
+    override fun loadShowColors(): Boolean =
+        prefs.getBoolean(PreferenceKeys.IMPROV_COLORS, true)
+
+    override fun saveShowColors(show: Boolean) {
+        prefs.edit().putBoolean(PreferenceKeys.IMPROV_COLORS, show).apply()
+    }
+
     private fun sectionsKey(instrument: ImprovInstrument): String =
         when (instrument) {
             ImprovInstrument.GUITAR -> PreferenceKeys.IMPROV_SECTIONS_GUITAR
