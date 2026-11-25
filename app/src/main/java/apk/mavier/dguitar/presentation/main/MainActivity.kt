@@ -131,6 +131,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderConfig() {
+        synth.bassMode = isBass()
         binding.fretboard.config = config
 
         binding.rootButton.text = Pitch.name(config.rootPc, config.useFlats)

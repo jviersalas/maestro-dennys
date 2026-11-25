@@ -37,9 +37,11 @@ import apk.mavier.dguitar.domain.model.ImprovChord
 import apk.mavier.dguitar.domain.model.ImprovInstrument
 import apk.mavier.dguitar.domain.model.ImprovSection
 import apk.mavier.dguitar.domain.model.ImprovStep
+import apk.mavier.dguitar.domain.model.Improvisation
 import apk.mavier.dguitar.domain.model.Pitch
 import apk.mavier.dguitar.domain.model.ScaleMode
 import apk.mavier.dguitar.domain.model.Scales
+import apk.mavier.dguitar.domain.model.SequencePositions
 import apk.mavier.dguitar.domain.model.Tuning
 import apk.mavier.dguitar.domain.model.ViewMode
 import apk.mavier.dguitar.domain.repository.ImprovisationRepository
@@ -124,7 +126,7 @@ class ImprovisationActivity : AppCompatActivity() {
 
         binding.barProgress.max = PROGRESS_MAX
 
-        val guitarSynth = GuitarSynth()
+        val guitarSynth = GuitarSynth().apply { bassMode = !isGuitar }
         synth = guitarSynth
         if (!isGuitar) {
             binding.improvFretboard.onNotePlayed = { stringIndex, midi ->
@@ -905,14 +907,20 @@ class ImprovisationActivity : AppCompatActivity() {
         arpeggioRunnable = null
         val bar = bars().getOrNull(activeBar) ?: return
         val chord = bar.step.chord
-        val allPositions = binding.improvFretboard.improvArpeggioPositions()
-        if (allPositions.isEmpty()) return
-        val positions = if (chord.principalOnly) {
-            listOf(principalPosition(allPositions, chord.rootPc))
-        } else {
-            allPositions
-        }
         val hits = chord.normalizedHitsPerBar
+        val allPositions = binding.improvFretboard.improvArpeggioPositions()
+        val rootPosition = lowestRootPosition(chord.rootPc) ?: allPositions.firstOrNull()
+        val positions = if (chord.principalOnly) {
+            listOfNotNull(rootPosition)
+        } else {
+            val ascending = if (rootPosition != null) {
+                ascendingArpeggioPositions(chord, rootPosition, hits)
+            } else {
+                emptyList()
+            }
+            ascending.ifEmpty { allPositions }
+        }
+        if (positions.isEmpty()) return
         val stepMs = (stepDurationMs(bar.step) / hits).coerceAtLeast(MIN_NOTE_GAP_MS)
         var hit = 0
         val runnable = object : Runnable {
@@ -930,6 +938,37 @@ class ImprovisationActivity : AppCompatActivity() {
         }
         arpeggioRunnable = runnable
         arpeggioHandler.post(runnable)
+    }
+
+    private fun ascendingArpeggioPositions(
+        chord: ImprovChord,
+        rootPosition: Pair<Int, Int>,
+        hits: Int
+    ): List<Pair<Int, Int>> {
+        val rootString = tuning.strings.getOrNull(rootPosition.first) ?: return emptyList()
+        val rootMidi = rootString.openMidi + rootPosition.second
+        val limit = maxOf(hits, 8).coerceAtMost(16)
+        val midis = Improvisation.ascendingChordMidi(
+            rootMidi,
+            chord.quality.intervals,
+            limit
+        )
+        val result = ArrayList<Pair<Int, Int>>(midis.size)
+        for (midi in midis) {
+            val position = if (result.isEmpty()) {
+                rootPosition
+            } else {
+                val sameStringFret = midi - rootString.openMidi
+                if (sameStringFret in 0..FretboardView.FRET_COUNT) {
+                    rootPosition.first to sameStringFret
+                } else {
+                    SequencePositions.freePosition(midi, tuning, FretboardView.FRET_COUNT)
+                        ?.let { it.stringIndex to it.fret }
+                }
+            } ?: continue
+            if (result.isEmpty() || position != result.last()) result.add(position)
+        }
+        return result
     }
 
     private fun playGuideNote(chord: ImprovChord) {
@@ -955,19 +994,6 @@ class ImprovisationActivity : AppCompatActivity() {
             }
         }
         return best
-    }
-
-    private fun principalPosition(
-        positions: List<Pair<Int, Int>>,
-        rootPc: Int
-    ): Pair<Int, Int> {
-        val roots = positions.filter { (stringIndex, fret) ->
-            val string = tuning.strings.getOrNull(stringIndex) ?: return@filter false
-            (string.openMidi + fret) % 12 == rootPc
-        }
-        return (roots.ifEmpty { positions }).minBy { (stringIndex, fret) ->
-            tuning.strings[stringIndex].openMidi + fret
-        }
     }
 
     private fun beatDurationMs(): Long = 60_000L / bpm

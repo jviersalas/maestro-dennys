@@ -94,4 +94,24 @@ class ImprovisationTest {
         assertEquals(0, Improvisation.totalBars(emptyList()))
         assertEquals(null, Improvisation.barAt(emptyList(), 0))
     }
+
+    @Test
+    fun bassArpeggioAscendsFromLowestRoot() {
+        assertEquals(
+            listOf(36, 40, 43, 48),
+            Improvisation.ascendingChordMidi(36, listOf(0, 4, 7), 4)
+        )
+        assertEquals(
+            listOf(36, 40, 43, 48, 52, 55, 60, 64),
+            Improvisation.ascendingChordMidi(36, listOf(0, 4, 7), 8)
+        )
+        assertEquals(
+            listOf(36),
+            Improvisation.ascendingChordMidi(36, listOf(0, 4, 7), 1)
+        )
+        assertEquals(
+            listOf(35, 38, 42, 47),
+            Improvisation.ascendingChordMidi(35, listOf(0, 3, 7), 4)
+        )
+    }
 }
