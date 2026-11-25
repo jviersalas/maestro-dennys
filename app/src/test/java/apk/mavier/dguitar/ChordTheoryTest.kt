@@ -30,6 +30,15 @@ class ChordTheoryTest {
     }
 
     @Test
+    fun dMajorUsesNaturalOpenShapeAndSpellsFSharp() {
+        val data = ChordTheory.diagram(2, Chords.MAJOR, Tunings.STANDARD, useFlats = true)
+        assertEquals("D", data.title)
+        assertEquals(listOf<Int?>(null, null, 0, 2, 3, 2), data.strings.map { it.fret })
+        assertEquals(listOf("Re", "Fa#", "La"), data.notesSolfege)
+        assertEquals(listOf("D", "F#", "A"), data.notesAnglo)
+    }
+
+    @Test
     fun bMinorStartsAtSecondFret() {
         val data = ChordTheory.diagram(11, Chords.MINOR, Tunings.STANDARD, useFlats = true)
         assertEquals(2, data.baseFret)
@@ -55,5 +64,19 @@ class ChordTheoryTest {
     fun solfegeUsesAccidentalsFromPreference() {
         assertEquals("Sib", Pitch.solfegeName(10, useFlats = true))
         assertEquals("La#", Pitch.solfegeName(10, useFlats = false))
+    }
+
+    @Test
+    fun bbMajorSpellsFlatThird() {
+        val data = ChordTheory.diagram(10, Chords.MAJOR, Tunings.STANDARD, useFlats = true)
+        assertEquals(listOf("Sib", "Re", "Fa"), data.notesSolfege)
+        assertEquals(listOf("Bb", "D", "F"), data.notesAnglo)
+    }
+
+    @Test
+    fun augmentedFifthIsSpelledAsSharpNotFlatSixth() {
+        val data = ChordTheory.diagram(2, Chords.AUGMENTED, Tunings.STANDARD, useFlats = true)
+        assertEquals(listOf("Re", "Fa#", "La#"), data.notesSolfege)
+        assertEquals(listOf("D", "F#", "A#"), data.notesAnglo)
     }
 }

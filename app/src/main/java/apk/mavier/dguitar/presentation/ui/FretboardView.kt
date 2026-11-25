@@ -15,6 +15,7 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.widget.OverScroller
 import apk.mavier.dguitar.domain.model.CagedPatternOccurrence
+import apk.mavier.dguitar.domain.model.ChordTheory
 import apk.mavier.dguitar.domain.model.CagedPatterns
 import apk.mavier.dguitar.domain.model.ChordVoicing
 import apk.mavier.dguitar.domain.model.ChordVoicingResolver
@@ -771,7 +772,14 @@ class FretboardView @JvmOverloads constructor(
                                 } else {
                                     NoteColorProvider.NEUTRAL_FILL
                                 }
-                                drawNote(canvas, x, y, pitchClass, cfg, fill, showText = true, radiusScale = 1f)
+                            drawNote(
+                                canvas, x, y, pitchClass, cfg, fill,
+                                showText = true,
+                                radiusScale = 1f,
+                                label = ChordTheory.noteNameForPitchClass(
+                                    cfg.rootPc, cfg.chord, cfg.useFlats, pitchClass, false
+                                )
+                            )
                             } else {
                                 drawDimmedNote(canvas, x, y, pitchClass, cfg)
                             }
@@ -872,7 +880,8 @@ class FretboardView @JvmOverloads constructor(
         cfg: FretboardConfig,
         fill: Int,
         showText: Boolean,
-        radiusScale: Float
+        radiusScale: Float,
+        label: String? = null
     ) {
         val radius = noteRadius * radiusScale
         val attenuated = radiusScale < 1f
@@ -894,7 +903,8 @@ class FretboardView @JvmOverloads constructor(
         noteTextPaint.alpha = if (attenuated) 140 else 255
         noteTextPaint.textSize = radius * 0.92f
         val baseline = y - (noteTextPaint.descent() + noteTextPaint.ascent()) / 2f
-        canvas.drawText(Pitch.name(pitchClass, cfg.useFlats), x, baseline, noteTextPaint)
+        val text = label ?: Pitch.name(pitchClass, cfg.useFlats)
+        canvas.drawText(text, x, baseline, noteTextPaint)
     }
 
     private fun drawRootRing(canvas: Canvas, x: Float, y: Float, radius: Float) {
