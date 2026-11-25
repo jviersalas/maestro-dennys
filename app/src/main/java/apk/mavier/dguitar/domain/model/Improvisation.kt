@@ -44,6 +44,12 @@ data class ImprovSection(
     val chords: List<ImprovChord> = emptyList()
 )
 
+data class ImprovProgression(
+    val id: String,
+    val name: String,
+    val sections: List<ImprovSection> = emptyList()
+)
+
 data class ImprovStep(
     val sectionIndex: Int,
     val chordIndex: Int,
