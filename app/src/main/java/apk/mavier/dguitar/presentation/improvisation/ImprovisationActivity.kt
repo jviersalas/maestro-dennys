@@ -51,6 +51,7 @@ import apk.mavier.dguitar.domain.model.ViewMode
 import apk.mavier.dguitar.domain.repository.ImprovisationRepository
 import apk.mavier.dguitar.domain.repository.SettingsRepository
 import apk.mavier.dguitar.domain.usecase.GetImprovisationStepsUseCase
+import apk.mavier.dguitar.presentation.common.HandlerScheduler
 import apk.mavier.dguitar.presentation.theme.ChordColorProvider
 import apk.mavier.dguitar.presentation.ui.FretboardView
 import apk.mavier.dguitar.presentation.ui.applySystemBarInsets
@@ -168,7 +169,7 @@ class ImprovisationActivity : AppCompatActivity() {
             ToneGenerator(AudioManager.STREAM_MUSIC, METRONOME_VOLUME)
         }.getOrNull()
 
-        playbackController = ImprovPlaybackController(HandlerImprovScheduler(handler))
+        playbackController = ImprovPlaybackController(HandlerScheduler(handler))
         playbackController.listener = object : ImprovPlaybackController.Listener {
             override fun onBarChanged(barIndex: Int) {
                 val bar = bars().getOrNull(barIndex) ?: return

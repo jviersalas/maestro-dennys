@@ -5,8 +5,6 @@ import apk.mavier.dguitar.R
 import android.content.Intent
 import android.graphics.Typeface
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
@@ -35,6 +33,9 @@ import apk.mavier.dguitar.domain.model.Tunings
 import apk.mavier.dguitar.domain.model.ViewMode
 import apk.mavier.dguitar.domain.repository.SettingsRepository
 import apk.mavier.dguitar.domain.usecase.BuildHarmonicCircleUseCase
+import apk.mavier.dguitar.presentation.common.HandlerScheduler
+import apk.mavier.dguitar.presentation.common.NoteSequencePlayer
+import apk.mavier.dguitar.presentation.common.NoteStep
 import apk.mavier.dguitar.presentation.improvisation.ImprovisationActivity
 import apk.mavier.dguitar.presentation.theme.ChordColorProvider
 import apk.mavier.dguitar.presentation.tuner.TunerActivity
@@ -49,12 +50,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var harmonicCircleUseCase: BuildHarmonicCircleUseCase
     private var config = FretboardConfig()
 
-    private val sequenceHandler = Handler(Looper.getMainLooper())
-    private var sequenceRunnable: Runnable? = null
+    private lateinit var sequencePlayer: NoteSequencePlayer
+    private lateinit var strumPlayer: NoteSequencePlayer
     private var sequencePlaying = false
-
-    private val strumHandler = Handler(Looper.getMainLooper())
-    private var strumRunnable: Runnable? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,6 +67,30 @@ class MainActivity : AppCompatActivity() {
         config = settingsRepository.load()
 
         synth = GuitarSynth()
+
+        val scheduler = HandlerScheduler()
+        sequencePlayer = NoteSequencePlayer(scheduler)
+        sequencePlayer.listener = object : NoteSequencePlayer.Listener {
+            override fun onNoteStep(step: NoteStep, index: Int) {
+                synth.pluck(step.stringIndex, step.midi)
+                binding.fretboard.highlightNote(step.stringIndex, step.fret, reveal = true)
+                binding.sequenceButton.text =
+                    "Detener · ${Pitch.name(Pitch.pitchClass(step.midi), config.useFlats)}"
+            }
+
+            override fun onFinished() {
+                stopSequence()
+            }
+        }
+        strumPlayer = NoteSequencePlayer(scheduler)
+        strumPlayer.listener = object : NoteSequencePlayer.Listener {
+            override fun onNoteStep(step: NoteStep, index: Int) {
+                synth.pluck(step.stringIndex, step.midi)
+                binding.fretboard.highlightNote(step.stringIndex, step.fret, reveal = false)
+            }
+
+            override fun onFinished() = Unit
+        }
 
         binding.fretboard.onNotePlayed = { stringIndex, midi ->
             synth.pluck(stringIndex, midi)
@@ -117,8 +139,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        sequenceHandler.removeCallbacksAndMessages(null)
-        strumHandler.removeCallbacksAndMessages(null)
+        if (::sequencePlayer.isInitialized) sequencePlayer.stop()
+        if (::strumPlayer.isInitialized) strumPlayer.stop()
     }
 
     private fun updateConfig(newConfig: FretboardConfig) {
@@ -593,37 +615,19 @@ class MainActivity : AppCompatActivity() {
         binding.sequenceButton.isSelected = true
         binding.sequenceButton.contentDescription = "Detener secuencia"
 
-        var index = 0
-        val runnable = object : Runnable {
-            override fun run() {
-                if (!sequencePlaying) return
-                if (index >= positions.size) {
-                    stopSequence()
-                    return
-                }
-
-                val position = positions[index]
-                val playedMidi = position.midi(config.tuning)
-                synth.pluck(position.stringIndex, playedMidi)
-                binding.fretboard.highlightNote(
-                    position.stringIndex,
-                    position.fret,
-                    reveal = true
-                )
-                binding.sequenceButton.text =
-                    "Detener · ${Pitch.name(Pitch.pitchClass(playedMidi), config.useFlats)}"
-                index++
-                sequenceHandler.postDelayed(this, SEQUENCE_STEP_MS)
-            }
+        val steps = positions.map { position ->
+            NoteStep(
+                stringIndex = position.stringIndex,
+                fret = position.fret,
+                midi = position.midi(config.tuning)
+            )
         }
-        sequenceRunnable = runnable
-        sequenceHandler.post(runnable)
+        sequencePlayer.play(steps, SEQUENCE_STEP_MS)
     }
 
     private fun stopSequence() {
         sequencePlaying = false
-        sequenceRunnable?.let { sequenceHandler.removeCallbacks(it) }
-        sequenceRunnable = null
+        sequencePlayer.stop()
         if (::binding.isInitialized) {
             binding.sequenceButton.text = "Secuencia"
             binding.sequenceButton.isSelected = false
@@ -637,29 +641,18 @@ class MainActivity : AppCompatActivity() {
         val positions = binding.fretboard.currentChordFormationPositions()
         if (positions.isEmpty()) return
 
-        var index = 0
-        val runnable = object : Runnable {
-            override fun run() {
-                if (index >= positions.size) {
-                    stopStrum()
-                    return
-                }
-
-                val (stringIndex, fret) = positions[index]
-                val midi = config.tuning.strings[stringIndex].openMidi + fret
-                synth.pluck(stringIndex, midi)
-                binding.fretboard.highlightNote(stringIndex, fret, reveal = false)
-                index++
-                strumHandler.postDelayed(this, STRUM_STEP_MS)
-            }
+        val steps = positions.map { (stringIndex, fret) ->
+            NoteStep(
+                stringIndex = stringIndex,
+                fret = fret,
+                midi = config.tuning.strings[stringIndex].openMidi + fret
+            )
         }
-        strumRunnable = runnable
-        strumHandler.post(runnable)
+        strumPlayer.play(steps, STRUM_STEP_MS)
     }
 
     private fun stopStrum() {
-        strumRunnable?.let { strumHandler.removeCallbacks(it) }
-        strumRunnable = null
+        strumPlayer.stop()
     }
 
     private fun toggleAccidental() {

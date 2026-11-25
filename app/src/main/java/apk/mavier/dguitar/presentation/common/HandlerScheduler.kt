@@ -1,16 +1,16 @@
-package apk.mavier.dguitar.presentation.improvisation
+package apk.mavier.dguitar.presentation.common
 
 import android.os.Handler
 import android.os.Looper
 
-class HandlerImprovScheduler(
+class HandlerScheduler(
     private val handler: Handler = Handler(Looper.getMainLooper())
-) : ImprovScheduler {
+) : Scheduler {
 
-    override fun postDelayed(delayMs: Long, action: () -> Unit): ImprovScheduler.Cancellable {
+    override fun postDelayed(delayMs: Long, action: () -> Unit): Scheduler.Cancellable {
         val runnable = Runnable { action() }
         handler.postDelayed(runnable, delayMs)
-        return object : ImprovScheduler.Cancellable {
+        return object : Scheduler.Cancellable {
             override fun cancel() {
                 handler.removeCallbacks(runnable)
             }

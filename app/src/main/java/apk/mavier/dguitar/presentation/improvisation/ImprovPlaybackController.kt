@@ -1,9 +1,10 @@
 package apk.mavier.dguitar.presentation.improvisation
 
 import apk.mavier.dguitar.domain.model.ImprovBar
+import apk.mavier.dguitar.presentation.common.Scheduler
 
 class ImprovPlaybackController(
-    private val scheduler: ImprovScheduler,
+    private val scheduler: Scheduler,
     private val tickMs: Long = DEFAULT_TICK_MS,
     private val progressMax: Int = DEFAULT_PROGRESS_MAX
 ) {
@@ -21,8 +22,8 @@ class ImprovPlaybackController(
     private var activeBar = -1
     private var elapsedMs = 0L
     private var running = false
-    private var barTask: ImprovScheduler.Cancellable? = null
-    private var progressTask: ImprovScheduler.Cancellable? = null
+    private var barTask: Scheduler.Cancellable? = null
+    private var progressTask: Scheduler.Cancellable? = null
 
     val isRunning: Boolean
         get() = running

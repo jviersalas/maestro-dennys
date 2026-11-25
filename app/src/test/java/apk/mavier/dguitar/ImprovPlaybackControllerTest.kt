@@ -6,47 +6,12 @@ import apk.mavier.dguitar.domain.model.ImprovChord
 import apk.mavier.dguitar.domain.model.ImprovSection
 import apk.mavier.dguitar.domain.model.Improvisation
 import apk.mavier.dguitar.presentation.improvisation.ImprovPlaybackController
-import apk.mavier.dguitar.presentation.improvisation.ImprovScheduler
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ImprovPlaybackControllerTest {
-
-    private class FakeScheduler : ImprovScheduler {
-
-        private data class Task(val time: Long, val id: Long, val action: () -> Unit)
-
-        private val tasks = mutableListOf<Task>()
-        private val cancelled = mutableSetOf<Long>()
-        private var nextId = 0L
-        private var now = 0L
-
-        override fun postDelayed(delayMs: Long, action: () -> Unit): ImprovScheduler.Cancellable {
-            val id = nextId++
-            tasks.add(Task(now + delayMs, id, action))
-            return object : ImprovScheduler.Cancellable {
-                override fun cancel() {
-                    cancelled.add(id)
-                }
-            }
-        }
-
-        fun advanceBy(deltaMs: Long) {
-            val target = now + deltaMs
-            while (true) {
-                val next = tasks
-                    .asSequence()
-                    .filter { it.id !in cancelled && it.time <= target }
-                    .minByOrNull { it.time } ?: break
-                tasks.remove(next)
-                now = next.time
-                next.action()
-            }
-            now = target
-        }
-    }
 
     private class Recorder : ImprovPlaybackController.Listener {
         val bars = mutableListOf<Int>()
@@ -73,7 +38,7 @@ class ImprovPlaybackControllerTest {
 
     @Test
     fun startsOnTheRequestedBar() {
-        val scheduler = FakeScheduler()
+        val scheduler = TestScheduler()
         val controller = ImprovPlaybackController(scheduler)
         val recorder = Recorder()
         controller.listener = recorder
@@ -86,7 +51,7 @@ class ImprovPlaybackControllerTest {
 
     @Test
     fun advancesOneBarEveryTwoSecondsAt120Bpm() {
-        val scheduler = FakeScheduler()
+        val scheduler = TestScheduler()
         val controller = ImprovPlaybackController(scheduler)
         val recorder = Recorder()
         controller.listener = recorder
@@ -101,7 +66,7 @@ class ImprovPlaybackControllerTest {
 
     @Test
     fun reportsProgressAcrossTheBar() {
-        val scheduler = FakeScheduler()
+        val scheduler = TestScheduler()
         val controller = ImprovPlaybackController(scheduler)
         val recorder = Recorder()
         controller.listener = recorder
@@ -114,7 +79,7 @@ class ImprovPlaybackControllerTest {
 
     @Test
     fun finishesAfterTheLastBar() {
-        val scheduler = FakeScheduler()
+        val scheduler = TestScheduler()
         val controller = ImprovPlaybackController(scheduler)
         val recorder = Recorder()
         controller.listener = recorder
@@ -129,7 +94,7 @@ class ImprovPlaybackControllerTest {
 
     @Test
     fun stopCancelsPendingWork() {
-        val scheduler = FakeScheduler()
+        val scheduler = TestScheduler()
         val controller = ImprovPlaybackController(scheduler)
         val recorder = Recorder()
         controller.listener = recorder

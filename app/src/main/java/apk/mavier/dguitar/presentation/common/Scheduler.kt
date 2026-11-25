@@ -1,6 +1,6 @@
-package apk.mavier.dguitar.presentation.improvisation
+package apk.mavier.dguitar.presentation.common
 
-interface ImprovScheduler {
+interface Scheduler {
 
     interface Cancellable {
         fun cancel()
