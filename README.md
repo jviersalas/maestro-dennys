@@ -23,28 +23,38 @@
 > mástil lo que suena, explica el *por qué* de cada nota y convierte la teoría
 > musical en algo que se ve, se escucha y se toca.
 
-## Ficha rápida
+## Novedades
 
-| | |
-|---|---|
-| **Plataforma** | Android nativo (Kotlin) |
-| **Compatibilidad** | Android 8.0 en adelante (API 26+) |
-| **Instrumentos** | Guitarra 6 cuerdas · Bajo 4 y 5 cuerdas |
-| **Afinaciones** | Estándar, Drop D, medio tono abajo, DADGAD, Open G, Open E |
-| **Escalas** | 51 escalas y modos |
-| **Acordes** | 24 tipos de acorde |
-| **Idioma** | Español |
+- **Onboarding una sola vez**: la primera vez eliges guitarra o bajo; en los
+  siguientes arranques la app abre directo en el mástil.
+- **Improvisación más completa**: varias progresiones guardadas por instrumento,
+  metrónomo con acento, capas independientes de escala/acorde/colores/grados,
+  tónica y escala configurables, y la posibilidad de tocar el mástil para
+  escuchar cada nota, también en guitarra.
+- **Afinador mejorado**: modo automático con detección de cuerda, modo manual,
+  indicador **EN TONO** y manejo del permiso de micrófono.
+- **Círculo armónico**: tríadas o séptimas, selección de grados y cambio de
+  calidad (diatónica, mayor o menor) manteniendo pulsado.
+- **Rendimiento**: el mástil cachea geometría, voicings y modelo de dibujo para
+  no recalcular por frame; la improvisación reutiliza su línea de tiempo.
+- **Release optimizado**: R8 activo; el APK de release pesa ~1.9 MB frente a
+  ~9 MB del debug.
+- **Calidad**: tests unitarios del dominio y GitHub Actions para tests, lint y
+  build.
+- **Textos centralizados** en `strings.xml`, listos para futuras traducciones.
 
 ## Contenido
 
-1. [Escalas](#escalas)
-2. [Acordes](#acordes)
-3. [Armonización](#armonización)
-4. [Improvisación](#improvisación)
-5. [Otras herramientas](#otras-herramientas)
-6. [Cómo ejecutar](#cómo-ejecutar)
-7. [Estructura del proyecto](#estructura-del-proyecto)
-8. [Sobre Dennys Ruiz](#sobre-dennys-ruiz)
+1. [Novedades](#novedades)
+2. [Escalas](#escalas)
+3. [Acordes](#acordes)
+4. [Armonización](#armonización)
+5. [Improvisación](#improvisación)
+6. [Otras herramientas](#otras-herramientas)
+7. [Calidad y pruebas](#calidad-y-pruebas)
+8. [Cómo ejecutar](#cómo-ejecutar)
+9. [Estructura del proyecto](#estructura-del-proyecto)
+10. [Sobre Dennys Ruiz](#sobre-dennys-ruiz)
 
 ---
 
