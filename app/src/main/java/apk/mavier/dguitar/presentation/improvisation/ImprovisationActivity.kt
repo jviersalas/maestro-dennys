@@ -24,6 +24,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import apk.mavier.dguitar.domain.di.DependencyProvider
 import apk.mavier.dguitar.core.audio.GuitarSynth
@@ -64,6 +65,7 @@ class ImprovisationActivity : AppCompatActivity() {
     private lateinit var settingsRepository: SettingsRepository
     private lateinit var improvisationRepository: ImprovisationRepository
     private lateinit var stepsUseCase: GetImprovisationStepsUseCase
+    private lateinit var viewModel: ImprovisationViewModel
 
     private var instrument = ImprovInstrument.BASS
     private var isGuitar = false
@@ -117,13 +119,19 @@ class ImprovisationActivity : AppCompatActivity() {
         isGuitar = tuning.strings.size >= 6
         instrument = if (isGuitar) ImprovInstrument.GUITAR else ImprovInstrument.BASS
         useFlats = config.useFlats
-        bpm = improvisationRepository.loadBpm(instrument)
-        showDegrees = improvisationRepository.loadShowDegrees()
-        showScale = improvisationRepository.loadShowScale()
-        showChord = improvisationRepository.loadShowChord()
-        showColors = improvisationRepository.loadShowColors()
-        metronomeEnabled = improvisationRepository.loadMetronome()
-        scale = Scales.all.getOrElse(improvisationRepository.loadScaleIndex()) {
+
+        viewModel = ViewModelProvider(
+            this,
+            ImprovisationViewModel.factory(container, instrument)
+        )[ImprovisationViewModel::class.java]
+        val saved = viewModel.settings.value
+        bpm = saved.bpm
+        showDegrees = saved.showDegrees
+        showScale = saved.showScale
+        showChord = saved.showChord
+        showColors = saved.showColors
+        metronomeEnabled = saved.metronome
+        scale = Scales.all.getOrElse(saved.scaleIndex) {
             Scales.PENTATONIC_MINOR
         }
         progressions = improvisationRepository.loadProgressions(instrument).toMutableList()
@@ -144,7 +152,7 @@ class ImprovisationActivity : AppCompatActivity() {
         if (sections.isEmpty()) sections.add(ImprovSection("Intro"))
         updateCurrentProgression()
         persistProgressions()
-        val storedRoot = improvisationRepository.loadScaleRoot()
+        val storedRoot = saved.scaleRootPc
         scaleRootAuto = storedRoot !in 0..11
         scaleRootPc = if (scaleRootAuto) firstChordRoot() else storedRoot
         selectedSection = 0
@@ -170,7 +178,7 @@ class ImprovisationActivity : AppCompatActivity() {
         binding.progressionButton.setOnClickListener { showProgressionDialog() }
         binding.degreesButton.setOnClickListener {
             showDegrees = !showDegrees
-            improvisationRepository.saveShowDegrees(showDegrees)
+            viewModel.setShowDegrees(showDegrees)
             renderFretboard()
             renderHeader()
         }
@@ -922,7 +930,7 @@ class ImprovisationActivity : AppCompatActivity() {
                 stopPlayback()
                 bpm = (input.text.toString().toIntOrNull() ?: DEFAULT_BPM)
                     .coerceIn(MIN_BPM, MAX_BPM)
-                improvisationRepository.saveBpm(instrument, bpm)
+                viewModel.setBpm(bpm)
                 renderHeader()
             }
             .setNegativeButton("Cancelar", null)
@@ -939,7 +947,7 @@ class ImprovisationActivity : AppCompatActivity() {
             if (item.itemId in 0..11) {
                 scaleRootAuto = false
                 scaleRootPc = item.itemId
-                improvisationRepository.saveScaleRoot(scaleRootPc)
+                viewModel.setScaleRoot(scaleRootPc)
                 renderFretboard()
                 renderGuitarControls()
             }
@@ -957,7 +965,7 @@ class ImprovisationActivity : AppCompatActivity() {
             .setSingleChoiceItems(labels, checked) { dialog, which ->
                 dialog.dismiss()
                 scale = Scales.all[which]
-                improvisationRepository.saveScaleIndex(which)
+                viewModel.setScaleIndex(which)
                 renderFretboard()
                 renderGuitarControls()
             }
@@ -967,28 +975,28 @@ class ImprovisationActivity : AppCompatActivity() {
 
     private fun toggleScaleLayer() {
         showScale = !showScale
-        improvisationRepository.saveShowScale(showScale)
+        viewModel.setShowScale(showScale)
         renderFretboard()
         renderGuitarControls()
     }
 
     private fun toggleChordLayer() {
         showChord = !showChord
-        improvisationRepository.saveShowChord(showChord)
+        viewModel.setShowChord(showChord)
         renderFretboard()
         renderGuitarControls()
     }
 
     private fun toggleColors() {
         showColors = !showColors
-        improvisationRepository.saveShowColors(showColors)
+        viewModel.setShowColors(showColors)
         renderFretboard()
         renderGuitarControls()
     }
 
     private fun toggleMetronome() {
         metronomeEnabled = !metronomeEnabled
-        improvisationRepository.saveMetronome(metronomeEnabled)
+        viewModel.setMetronome(metronomeEnabled)
         if (metronomeEnabled) {
             if (playing) startMetronomeForBar()
         } else {
