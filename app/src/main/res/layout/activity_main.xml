@@ -152,6 +152,14 @@
                 android:drawableTint="@color/text_primary"
                 android:text="@string/pick" />
 
+            <TextView
+                android:id="@+id/guideButton"
+                style="@style/ChipButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="@string/chord_guide" />
+
             <ImageView
                 android:id="@+id/settingsButton"
                 android:layout_width="48dp"

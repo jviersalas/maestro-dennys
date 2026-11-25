@@ -30,6 +30,14 @@
     <string name="chord">Acorde</string>
     <string name="improv_fretboard_description">Mástil para improvisar</string>
 
+    <string name="chord_guide">Guía</string>
+    <string name="chord_guide_title">Guía de acordes</string>
+    <string name="chord_guide_intro">Un acorde es un grupo de tres o más notas que suenan a la vez. Su nombre combina la nota raíz con su calidad (mayor, menor, séptima…).</string>
+    <string name="how_formed">Cómo se forma</string>
+    <string name="chord_notes_section">Notas del acorde</string>
+    <string name="how_named">Cómo se nombra y se escribe</string>
+    <string name="chord_guide_hint">Toca el mástil para escuchar cada nota del acorde.</string>
+
     <string name="tuner_hint">Toca una cuerda al aire</string>
     <string name="auto">Auto</string>
     <string name="close">Cerrar</string>
