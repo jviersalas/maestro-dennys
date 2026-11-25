@@ -109,9 +109,28 @@ class ChordDiagramView @JvmOverloads constructor(
 
         val w = width.toFloat()
         val h = height.toFloat()
-        val corner = dp(18f)
+        val corner = dp(14f)
 
         canvas.drawRoundRect(0f, 0f, w, h, corner, corner, cardPaint)
+
+        val micro = h < dp(100f)
+        if (micro) {
+            borderPaint.color = ChordColorProvider.baseColor(data.rootPc)
+            borderPaint.strokeWidth = dp(2f)
+            canvas.drawRoundRect(0f, 0f, w, h, corner, corner, borderPaint)
+            drawDiagram(
+                canvas, data, w, h,
+                headerHeight = 0f,
+                notesHeight = dp(4f),
+                compact = false,
+                mini = false,
+                micro = true
+            )
+            return
+        }
+
+        borderPaint.color = borderColor
+        borderPaint.strokeWidth = dp(1f)
         canvas.drawRoundRect(0f, 0f, w, h, corner, corner, borderPaint)
 
         val mini = h < dp(150f)
@@ -145,7 +164,7 @@ class ChordDiagramView @JvmOverloads constructor(
         subtitlePaint.alpha = 225
 
         drawHeader(canvas, data, w, headerHeight, compact, mini)
-        drawDiagram(canvas, data, w, h, headerHeight, notesHeight, compact, mini)
+        drawDiagram(canvas, data, w, h, headerHeight, notesHeight, compact, mini, micro = false)
         drawNotes(canvas, data, w, h, notesHeight, compact, mini)
     }
 
@@ -182,17 +201,20 @@ class ChordDiagramView @JvmOverloads constructor(
         headerHeight: Float,
         notesHeight: Float,
         compact: Boolean,
-        mini: Boolean
+        mini: Boolean,
+        micro: Boolean
     ) {
         val stringCount = data.strings.size
         if (stringCount == 0) return
 
         val left = when {
+            micro -> dp(8f)
             mini -> dp(12f)
             compact -> dp(24f)
             else -> dp(36f)
         }
         val right = w - when {
+            micro -> dp(8f)
             mini -> dp(10f)
             compact -> dp(16f)
             else -> dp(22f)
@@ -200,6 +222,7 @@ class ChordDiagramView @JvmOverloads constructor(
         val step = if (stringCount > 1) (right - left) / (stringCount - 1) else 0f
 
         val markerSpace = when {
+            micro -> dp(12f)
             mini -> dp(12f)
             compact -> dp(24f)
             else -> dp(40f)
@@ -211,11 +234,13 @@ class ChordDiagramView @JvmOverloads constructor(
         val rows = data.fretSpan.coerceAtLeast(1)
         val rowHeight = (gridBottom - gridTop) / rows
         val markerOffset = when {
+            micro -> dp(5f)
             mini -> dp(7f)
             compact -> dp(9f)
             else -> dp(12f)
         }
         val markerSize = when {
+            micro -> dp(8f)
             mini -> dp(9f)
             compact -> dp(11f)
             else -> dp(14f)
@@ -235,7 +260,7 @@ class ChordDiagramView @JvmOverloads constructor(
             }
         }
 
-        if (data.baseFret > 1) {
+        if (data.baseFret > 1 && !micro) {
             val baseline = gridTop + rowHeight / 2f -
                 (fretLabelPaint.ascent() + fretLabelPaint.descent()) / 2f
             canvas.drawText("${data.baseFret}fr", left - dp(8f), baseline, fretLabelPaint)
@@ -267,8 +292,15 @@ class ChordDiagramView @JvmOverloads constructor(
         drawBarre(canvas, data, left, step, gridTop, rowHeight, rows)
 
         val maxRadius = min(rowHeight * 0.45f, step * 0.34f)
-            .coerceAtLeast(if (mini) dp(4f) else if (compact) dp(5f) else dp(7f))
-        val showDotLetters = !mini || maxRadius >= dp(6f)
+            .coerceAtLeast(
+                when {
+                    micro -> dp(3.5f)
+                    mini -> dp(4f)
+                    compact -> dp(5f)
+                    else -> dp(7f)
+                }
+            )
+        val showDotLetters = !micro && (!mini || maxRadius >= dp(6f))
         for (index in 0 until stringCount) {
             val string = data.strings[index]
             val fret = string.fret ?: continue

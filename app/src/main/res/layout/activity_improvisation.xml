@@ -13,9 +13,9 @@
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="16dp"
-        android:paddingTop="12dp"
+        android:paddingTop="8dp"
         android:paddingEnd="16dp"
-        android:paddingBottom="12dp">
+        android:paddingBottom="8dp">
 
         <LinearLayout
             android:layout_width="0dp"
@@ -68,10 +68,22 @@
 
             <apk.mavier.dguitar.presentation.ui.ChordDiagramView
                 android:id="@+id/improvChordDiagram"
-                android:layout_width="100dp"
-                android:layout_height="120dp"
+                android:layout_width="88dp"
+                android:layout_height="60dp"
                 android:layout_marginStart="8dp"
                 android:visibility="gone" />
+
+            <ImageButton
+                android:id="@+id/optionsButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_icon_button"
+                android:contentDescription="@string/options"
+                android:padding="12dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_settings"
+                app:tint="@color/icon_tint" />
         </LinearLayout>
 
         <LinearLayout
@@ -158,11 +170,18 @@
         android:layout_height="1dp"
         android:background="@color/chip_border" />
 
-    <HorizontalScrollView
+    <LinearLayout
+        android:id="@+id/optionsBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/app_background"
-        android:scrollbars="none">
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/app_background"
+            android:scrollbars="none">
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -231,12 +250,13 @@
                 android:layout_marginEnd="8dp"
                 android:text="@string/chord" />
         </LinearLayout>
-    </HorizontalScrollView>
+        </HorizontalScrollView>
 
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@color/chip_border" />
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/chip_border" />
+    </LinearLayout>
 
     <com.google.android.material.progressindicator.LinearProgressIndicator
         android:id="@+id/barProgress"
