@@ -1,19 +1,13 @@
 package apk.mavier.dguitar.presentation.main
 
-import apk.mavier.dguitar.R
-
 import android.content.Intent
-import android.graphics.Typeface
 import android.os.Bundle
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
-import android.text.style.RelativeSizeSpan
-import android.text.style.StyleSpan
 import android.view.Menu
 import android.view.View
 import android.widget.PopupMenu
-import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
@@ -21,8 +15,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import apk.mavier.dguitar.core.audio.GuitarSynth
 import apk.mavier.dguitar.databinding.ActivityMainBinding
 import apk.mavier.dguitar.domain.di.DependencyProvider
-import apk.mavier.dguitar.databinding.DialogHarmonicCircleBinding
-import apk.mavier.dguitar.domain.model.ChordQuality
 import apk.mavier.dguitar.domain.model.Chords
 import apk.mavier.dguitar.domain.model.FretboardConfig
 import apk.mavier.dguitar.domain.model.HarmonicChord
@@ -33,10 +25,11 @@ import apk.mavier.dguitar.domain.model.Tunings
 import apk.mavier.dguitar.domain.model.ViewMode
 import apk.mavier.dguitar.domain.repository.SettingsRepository
 import apk.mavier.dguitar.domain.usecase.BuildHarmonicCircleUseCase
-import apk.mavier.dguitar.presentation.common.instrumentLabel
 import apk.mavier.dguitar.presentation.common.HandlerScheduler
 import apk.mavier.dguitar.presentation.common.NoteSequencePlayer
 import apk.mavier.dguitar.presentation.common.NoteStep
+import apk.mavier.dguitar.presentation.common.instrumentLabel
+import apk.mavier.dguitar.presentation.common.showLabeledMenu
 import apk.mavier.dguitar.presentation.improvisation.ImprovisationActivity
 import apk.mavier.dguitar.presentation.theme.ChordColorProvider
 import apk.mavier.dguitar.presentation.tuner.TunerActivity
@@ -49,6 +42,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var synth: GuitarSynth
     private lateinit var settingsRepository: SettingsRepository
     private lateinit var harmonicCircleUseCase: BuildHarmonicCircleUseCase
+    private lateinit var harmonicCircleController: HarmonicCircleDialogController
     private var config = FretboardConfig()
 
     private lateinit var sequencePlayer: NoteSequencePlayer
@@ -65,6 +59,12 @@ class MainActivity : AppCompatActivity() {
         val container = (application as DependencyProvider)
         settingsRepository = container.settingsRepository
         harmonicCircleUseCase = container.harmonicCircleUseCase
+        harmonicCircleController = HarmonicCircleDialogController(
+            activity = this,
+            harmonicCircleUseCase = harmonicCircleUseCase,
+            configProvider = { config },
+            onConfigChange = { updateConfig(it) }
+        )
         config = settingsRepository.load()
 
         synth = GuitarSynth()
@@ -260,7 +260,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showRootMenu(anchor: View) {
-        showMenu(anchor, (0..11).toList(), { pitchClass -> Pitch.name(pitchClass, config.useFlats) }) { pitchClass ->
+        showLabeledMenu(anchor, (0..11).toList(), { pitchClass -> Pitch.name(pitchClass, config.useFlats) }) { pitchClass ->
             updateConfig(config.copy(rootPc = pitchClass))
         }
     }
@@ -347,7 +347,7 @@ class MainActivity : AppCompatActivity() {
         when (config.mode) {
             ViewMode.SCALE -> showScaleDialog()
 
-            ViewMode.CHORD -> showMenu(anchor, Chords.all, { it.name }) { chord ->
+            ViewMode.CHORD -> showLabeledMenu(anchor, Chords.all, { it.name }) { chord ->
                 updateConfig(config.copy(chord = chord))
             }
 
@@ -370,7 +370,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showTuningMenu(anchor: View) {
         val tunings = if (isBass()) Tunings.bassAll else Tunings.guitarAll
-        showMenu(anchor, tunings, { it.name }) { tuning ->
+        showLabeledMenu(anchor, tunings, { it.name }) { tuning ->
             val mode = if (tuning.strings.size < 6 && config.mode == ViewMode.CHORD) {
                 ViewMode.SCALE
             } else {
@@ -392,187 +392,7 @@ class MainActivity : AppCompatActivity() {
         if (config.circleDegrees.isEmpty()) {
             updateConfig(config.copy(circleDegrees = (1..7).toSet()))
         }
-        showHarmonicCircleDialog()
-    }
-
-    private fun showHarmonicCircleDialog() {
-        if (!harmonicCircleUseCase.supports(config.scale)) return
-
-        val dialogBinding = DialogHarmonicCircleBinding.inflate(layoutInflater)
-        val dialog = MaterialAlertDialogBuilder(this)
-            .setView(dialogBinding.root)
-            .setNegativeButton("Cerrar", null)
-            .create()
-
-        fun applyDegrees(degrees: Set<Int>) {
-            updateConfig(config.copy(circleDegrees = degrees))
-            renderDegreeRows(dialogBinding)
-        }
-
-        dialogBinding.seventhsButton.text = "Séptimas"
-        dialogBinding.seventhsButton.setOnClickListener {
-            updateConfig(
-                config.copy(
-                    circleSevenths = !config.circleSevenths,
-                    circleOverrides = emptyMap()
-                )
-            )
-            renderDegreeRows(dialogBinding)
-        }
-        dialogBinding.toggleAllButton.setOnClickListener {
-            applyDegrees((1..7).toSet())
-        }
-        dialogBinding.toggleNoneButton.setOnClickListener {
-            applyDegrees(emptySet())
-        }
-
-        renderDegreeRows(dialogBinding)
-        dialog.show()
-    }
-
-    private fun renderDegreeRows(dialogBinding: DialogHarmonicCircleBinding) {
-        dialogBinding.circleSubtitle.text = buildString {
-            append(Pitch.name(config.rootPc, config.useFlats))
-            append(" ")
-            append(config.scale.name)
-            append(" · ")
-            append(if (config.circleSevenths) "séptimas" else "tríadas")
-        }
-        dialogBinding.seventhsButton.isSelected = config.circleSevenths
-        dialogBinding.toggleAllButton.isSelected = config.circleDegrees.size == 7
-        dialogBinding.toggleNoneButton.isSelected = config.circleDegrees.isEmpty()
-
-        val previousScroll = dialogBinding.degreeScroll.scrollY
-        val allChords = harmonicCircleUseCase.chords(
-            config.scale,
-            config.rootPc,
-            config.circleSevenths
-        )
-        dialogBinding.degreeList.removeAllViews()
-        for (chord in allChords) {
-            val quality = config.circleOverrides[chord.degree] ?: chord.quality
-            val row = layoutInflater.inflate(
-                R.layout.item_harmonic_chord,
-                dialogBinding.degreeList,
-                false
-            ) as TextView
-            val selected = config.circleDegrees.contains(chord.degree)
-            row.isSelected = selected
-            row.text = buildDegreeText(chord, quality)
-            row.contentDescription = buildString {
-                append("Grado ")
-                append(chord.degree)
-                append(", ")
-                append(Pitch.name(chord.rootPc, config.useFlats))
-                append(" ")
-                append(quality.name)
-                append(if (selected) ", activado" else ", desactivado")
-            }
-            row.setOnClickListener {
-                val degrees = if (selected) {
-                    config.circleDegrees - chord.degree
-                } else {
-                    config.circleDegrees + chord.degree
-                }
-                updateConfig(config.copy(circleDegrees = degrees))
-                renderDegreeRows(dialogBinding)
-            }
-            row.setOnLongClickListener {
-                showDegreeQualityMenu(row, chord, dialogBinding)
-                true
-            }
-            dialogBinding.degreeList.addView(row)
-        }
-        dialogBinding.degreeScroll.post {
-            dialogBinding.degreeScroll.scrollTo(0, previousScroll)
-        }
-    }
-
-    private fun buildDegreeText(chord: HarmonicChord, quality: ChordQuality): CharSequence {
-        val builder = SpannableStringBuilder()
-        val degreeStart = builder.length
-        builder.append(chord.degree.toString())
-        builder.setSpan(
-            StyleSpan(Typeface.BOLD),
-            degreeStart,
-            builder.length,
-            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-        )
-        builder.append("   ")
-        val chordStart = builder.length
-        builder.append(Pitch.name(chord.rootPc, config.useFlats))
-        builder.append(quality.symbol)
-        builder.setSpan(
-            ForegroundColorSpan(ChordColorProvider.labelColor(chord.rootPc)),
-            chordStart,
-            builder.length,
-            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-        )
-        builder.append("   ")
-        val qualityStart = builder.length
-        builder.append(quality.name)
-        builder.setSpan(
-            ForegroundColorSpan(getColor(R.color.text_secondary)),
-            qualityStart,
-            builder.length,
-            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-        )
-
-        val notes = quality.pitchClasses(chord.rootPc)
-            .sortedBy { ((it - chord.rootPc) % 12 + 12) % 12 }
-            .joinToString(" ") { Pitch.name(it, config.useFlats) }
-        builder.append("   ·   ")
-        val notesStart = builder.length
-        builder.append(notes)
-        builder.setSpan(
-            ForegroundColorSpan(ChordColorProvider.labelColor(chord.rootPc)),
-            notesStart,
-            builder.length,
-            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-        )
-        builder.setSpan(
-            RelativeSizeSpan(0.88f),
-            notesStart,
-            builder.length,
-            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-        )
-        return builder
-    }
-
-    private fun showDegreeQualityMenu(
-        anchor: View,
-        chord: HarmonicChord,
-        dialogBinding: DialogHarmonicCircleBinding
-    ) {
-        val diatonic = harmonicCircleUseCase.chords(
-            config.scale,
-            config.rootPc,
-            config.circleSevenths
-        ).firstOrNull { it.degree == chord.degree }?.quality ?: chord.quality
-        val major = if (config.circleSevenths) Chords.MAJOR_7 else Chords.MAJOR
-        val minorQuality = if (config.circleSevenths) Chords.MINOR_7 else Chords.MINOR
-
-        val popup = PopupMenu(this, anchor)
-        popup.menu.add(Menu.NONE, 0, 0, "Diatónica (${diatonic.name})")
-        popup.menu.add(Menu.NONE, 1, 1, if (config.circleSevenths) "Mayor 7" else "Mayor")
-        popup.menu.add(Menu.NONE, 2, 2, if (config.circleSevenths) "Menor 7" else "Menor")
-        popup.setOnMenuItemClickListener { item ->
-            val overrides = config.circleOverrides.toMutableMap()
-            when (item.itemId) {
-                0 -> overrides.remove(chord.degree)
-                1 -> overrides[chord.degree] = major
-                2 -> overrides[chord.degree] = minorQuality
-            }
-            updateConfig(
-                config.copy(
-                    circleDegrees = config.circleDegrees + chord.degree,
-                    circleOverrides = overrides
-                )
-            )
-            renderDegreeRows(dialogBinding)
-            true
-        }
-        popup.show()
+        harmonicCircleController.show()
     }
 
     private fun toggleSequence() {
@@ -663,18 +483,6 @@ class MainActivity : AppCompatActivity() {
         ViewMode.CHORD -> "Acorde"
         ViewMode.FREE -> "Libre (sin colores)"
         ViewMode.IMPROV -> "Improvisación"
-    }
-
-    private fun <T> showMenu(anchor: View, items: List<T>, label: (T) -> String, onPick: (T) -> Unit) {
-        val popup = PopupMenu(this, anchor)
-        items.forEachIndexed { index, item ->
-            popup.menu.add(Menu.NONE, index, index, label(item))
-        }
-        popup.setOnMenuItemClickListener { menuItem ->
-            items.getOrNull(menuItem.itemId)?.let(onPick)
-            true
-        }
-        popup.show()
     }
 
     private companion object {
