@@ -5,11 +5,13 @@ import android.graphics.Typeface
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.text.InputType
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.view.Gravity
+import android.view.Menu
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.EditText
@@ -17,21 +19,25 @@ import android.widget.LinearLayout
 import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import apk.mavier.dguitar.domain.di.DependencyProvider
 import apk.mavier.dguitar.core.audio.GuitarSynth
 import apk.mavier.dguitar.databinding.ActivityImprovisationBinding
 import apk.mavier.dguitar.databinding.DialogImprovChordBinding
+import apk.mavier.dguitar.databinding.DialogImprovisationProgressionBinding
 import apk.mavier.dguitar.domain.model.Chords
 import apk.mavier.dguitar.domain.model.FretboardConfig
+import apk.mavier.dguitar.domain.model.ImprovBar
 import apk.mavier.dguitar.domain.model.ImprovChord
+import apk.mavier.dguitar.domain.model.ImprovInstrument
 import apk.mavier.dguitar.domain.model.ImprovSection
 import apk.mavier.dguitar.domain.model.ImprovStep
 import apk.mavier.dguitar.domain.model.Pitch
+import apk.mavier.dguitar.domain.model.ScaleMode
 import apk.mavier.dguitar.domain.model.Scales
 import apk.mavier.dguitar.domain.model.Tuning
-import apk.mavier.dguitar.domain.model.Tunings
 import apk.mavier.dguitar.domain.model.ViewMode
 import apk.mavier.dguitar.domain.repository.ImprovisationRepository
 import apk.mavier.dguitar.domain.repository.SettingsRepository
@@ -41,24 +47,37 @@ import apk.mavier.dguitar.presentation.theme.ChordColorProvider
 class ImprovisationActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityImprovisationBinding
-    private lateinit var synth: GuitarSynth
+    private var synth: GuitarSynth? = null
     private lateinit var tuning: Tuning
     private lateinit var settingsRepository: SettingsRepository
     private lateinit var improvisationRepository: ImprovisationRepository
     private lateinit var stepsUseCase: GetImprovisationStepsUseCase
 
+    private var instrument = ImprovInstrument.BASS
+    private var isGuitar = false
+    private var silent = false
     private var useFlats = true
     private var sections = mutableListOf<ImprovSection>()
     private var selectedSection = 0
     private var activeStep = -1
+    private var activeBar = -1
     private var bpm = DEFAULT_BPM
     private var playing = false
     private var showDegrees = true
+    private var showScale = true
+    private var showChord = true
+    private var scaleRootPc = 0
+    private var scaleRootAuto = true
+    private var scale: ScaleMode = Scales.PENTATONIC_MINOR
+    private var barStartedAt = 0L
 
     private val handler = Handler(Looper.getMainLooper())
     private var playbackRunnable: Runnable? = null
+    private var progressRunnable: Runnable? = null
     private val arpeggioHandler = Handler(Looper.getMainLooper())
     private var arpeggioRunnable: Runnable? = null
+    private var progressionDialog: AlertDialog? = null
+    private var progressionDialogBinding: DialogImprovisationProgressionBinding? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,71 +90,93 @@ class ImprovisationActivity : AppCompatActivity() {
         stepsUseCase = container.improvisationStepsUseCase
 
         val config = settingsRepository.load()
-        tuning = if (config.tuning.strings.size in 4..5) {
-            config.tuning
-        } else {
-            Tunings.BASS_4
-        }
+        tuning = config.tuning
+        isGuitar = tuning.strings.size >= 6
+        silent = isGuitar
+        instrument = if (isGuitar) ImprovInstrument.GUITAR else ImprovInstrument.BASS
         useFlats = config.useFlats
-        bpm = improvisationRepository.loadBpm()
+        bpm = improvisationRepository.loadBpm(instrument)
         showDegrees = improvisationRepository.loadShowDegrees()
-        sections = improvisationRepository.loadSections().toMutableList()
+        showScale = improvisationRepository.loadShowScale()
+        showChord = if (isGuitar) improvisationRepository.loadShowChord() else true
+        scale = Scales.all.getOrElse(improvisationRepository.loadScaleIndex()) {
+            Scales.PENTATONIC_MINOR
+        }
+        sections = improvisationRepository.loadSections(instrument).toMutableList()
         if (sections.isEmpty()) sections.add(ImprovSection("Intro"))
+        val storedRoot = improvisationRepository.loadScaleRoot()
+        scaleRootAuto = storedRoot !in 0..11
+        scaleRootPc = if (scaleRootAuto) firstChordRoot() else storedRoot
         selectedSection = 0
-        activeStep = if (sections.first().chords.isNotEmpty()) 0 else -1
+        setActiveStep(if (sections.first().chords.isNotEmpty()) 0 else -1)
 
-        synth = GuitarSynth()
-        binding.improvFretboard.onNotePlayed = { stringIndex, midi ->
-            synth.pluck(stringIndex, midi)
+        binding.barProgress.max = PROGRESS_MAX
+
+        if (!silent) {
+            val guitarSynth = GuitarSynth()
+            synth = guitarSynth
+            binding.improvFretboard.onNotePlayed = { stringIndex, midi ->
+                guitarSynth.pluck(stringIndex, midi)
+            }
         }
 
         binding.backButton.setOnClickListener { finish() }
         binding.playButton.setOnClickListener { togglePlayback() }
         binding.tempoButton.setOnClickListener { showTempoDialog() }
+        binding.progressionButton.setOnClickListener { showProgressionDialog() }
         binding.degreesButton.setOnClickListener {
             showDegrees = !showDegrees
             improvisationRepository.saveShowDegrees(showDegrees)
             renderFretboard()
             renderHeader()
         }
+        binding.scaleRootButton.setOnClickListener { showScaleRootMenu(it) }
+        binding.scaleButton.setOnClickListener { showScaleDialog() }
+        binding.showScaleButton.setOnClickListener { toggleScaleLayer() }
+        binding.showChordButton.setOnClickListener { toggleChordLayer() }
 
         renderAll()
     }
 
     override fun onResume() {
         super.onResume()
-        synth.start()
+        synth?.start()
     }
 
     override fun onPause() {
         super.onPause()
         stopPlayback()
-        synth.stop()
+        synth?.stop()
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        progressionDialog?.dismiss()
+        progressionDialog = null
+        progressionDialogBinding = null
         handler.removeCallbacksAndMessages(null)
         arpeggioHandler.removeCallbacksAndMessages(null)
     }
 
     private fun renderAll() {
-        renderSectionChips()
-        renderChordChips()
+        refreshProgressionDialog()
         renderFretboard()
         renderHeader()
+        renderGuitarControls()
     }
 
     private fun renderHeader() {
         val section = sections.getOrNull(selectedSection)
-        val active = steps().getOrNull(activeStep)
+        val bars = bars()
+        val bar = bars.getOrNull(activeBar)
+        val active = bar?.step?.chord ?: steps().getOrNull(activeStep)?.chord
         binding.improvSubtitle.text = buildString {
             append(instrumentLabel())
             append(" · ")
             append(section?.name ?: "Sin sección")
             if (active != null) {
                 append(" · ")
-                append(active.chord.label(useFlats))
+                append(active.label(useFlats))
             }
         }
         binding.degreesButton.isSelected = showDegrees
@@ -143,14 +184,66 @@ class ImprovisationActivity : AppCompatActivity() {
             if (showDegrees) "Ocultar grados del acorde" else "Mostrar grados del acorde"
         binding.tempoButton.text = "Tempo $bpm"
         binding.tempoButton.contentDescription = "Cambiar tempo, $bpm BPM"
+        binding.progressionButton.contentDescription =
+            "Editar progresión, ${sections.size} secciones"
         binding.playButton.text = if (playing) "Detener" else "Play"
         binding.playButton.isSelected = playing
         binding.playButton.contentDescription =
             if (playing) "Detener reproducción" else "Reproducir progresión"
+        binding.barIndicator.text = when {
+            bars.isEmpty() -> "Sin compases"
+            bar != null -> "Compás ${bar.globalBar} / ${bars.size}"
+            else -> "Sin compás activo"
+        }
+        binding.barProgress.progress = if (playing && bar != null) currentBarProgress() else 0
     }
 
-    private fun renderSectionChips() {
-        binding.sectionList.removeAllViews()
+    private fun renderGuitarControls() {
+        val guitarVisibility = if (isGuitar) View.VISIBLE else View.GONE
+        binding.scaleRootButton.visibility = guitarVisibility
+        binding.scaleButton.visibility = guitarVisibility
+        binding.showScaleButton.visibility = guitarVisibility
+        binding.showChordButton.visibility = guitarVisibility
+        binding.scaleRootButton.text = "Tónica ${Pitch.name(scaleRootPc, useFlats)}"
+        binding.scaleRootButton.contentDescription =
+            "Tónica de la escala ${Pitch.name(scaleRootPc, useFlats)}"
+        binding.scaleButton.text = scale.name
+        binding.scaleButton.contentDescription = "Escala ${scale.name}"
+        binding.showScaleButton.isSelected = showScale
+        binding.showScaleButton.contentDescription =
+            if (showScale) "Ocultar notas de la escala" else "Mostrar notas de la escala"
+        binding.showChordButton.isSelected = showChord
+        binding.showChordButton.contentDescription =
+            if (showChord) "Ocultar notas del acorde" else "Mostrar notas del acorde"
+    }
+
+    private fun showProgressionDialog() {
+        stopPlayback()
+        if (progressionDialog?.isShowing == true) return
+        val dialogBinding = DialogImprovisationProgressionBinding.inflate(layoutInflater)
+        progressionDialogBinding = dialogBinding
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle("Progresión")
+            .setView(dialogBinding.root)
+            .setNegativeButton("Cerrar", null)
+            .setOnDismissListener {
+                progressionDialogBinding = null
+                progressionDialog = null
+            }
+            .create()
+        progressionDialog = dialog
+        dialog.show()
+        refreshProgressionDialog()
+    }
+
+    private fun refreshProgressionDialog() {
+        val dialogBinding = progressionDialogBinding ?: return
+        renderSectionChips(dialogBinding.dialogSectionList)
+        renderChordChips(dialogBinding.dialogChordList)
+    }
+
+    private fun renderSectionChips(container: LinearLayout) {
+        container.removeAllViews()
         sections.forEachIndexed { index, section ->
             val chip = createChip(section.name, index == selectedSection)
             chip.contentDescription = "Sección ${section.name}"
@@ -159,19 +252,19 @@ class ImprovisationActivity : AppCompatActivity() {
                 showSectionMenu(chip, index)
                 true
             }
-            binding.sectionList.addView(chip)
+            container.addView(chip)
         }
         val addChip = createAddChip("Añadir sección")
         addChip.setOnClickListener { addSection() }
-        binding.sectionList.addView(addChip)
+        container.addView(addChip)
     }
 
-    private fun renderChordChips() {
-        binding.chordList.removeAllViews()
+    private fun renderChordChips(container: LinearLayout) {
+        container.removeAllViews()
         val section = sections.getOrNull(selectedSection) ?: return
-        val active = steps().getOrNull(activeStep)
-        val activeChordIndex = if (active?.sectionIndex == selectedSection) {
-            active.chordIndex
+        val active = bars().getOrNull(activeBar)
+        val activeChordIndex = if (active?.step?.sectionIndex == selectedSection) {
+            active.step.chordIndex
         } else {
             -1
         }
@@ -185,56 +278,63 @@ class ImprovisationActivity : AppCompatActivity() {
                 setPadding(dp(4), 0, dp(12), 0)
                 minHeight = dp(48)
             }
-            binding.chordList.addView(hint)
+            container.addView(hint)
         }
 
         section.chords.forEachIndexed { index, chord ->
             val chip = createChip(chordChipText(chord), index == activeChordIndex)
             chip.contentDescription = "Acorde ${chord.label(useFlats)}"
             chip.setOnClickListener {
-                stopPlayback()
-                selectedSection = sections.indexOf(section)
-                activeStep = firstStepOfSection(selectedSection) + index
-                renderAll()
+                selectStep(firstStepOfSection(selectedSection) + index)
             }
             chip.setOnLongClickListener {
                 showChordMenu(chip, selectedSection, index)
                 true
             }
-            binding.chordList.addView(chip)
+            container.addView(chip)
         }
 
         val addChip = createAddChip("Añadir acorde")
         addChip.setOnClickListener { addChord() }
-        binding.chordList.addView(addChip)
+        container.addView(addChip)
     }
 
     private fun renderFretboard() {
-        val allSteps = steps()
-        val active = allSteps.getOrNull(activeStep)?.chord
-        val next = allSteps.getOrNull(activeStep + 1)?.chord
+        val bars = bars()
+        val bar = bars.getOrNull(activeBar)
+        val active = bar?.step?.chord ?: steps().getOrNull(activeStep)?.chord
+        val next = bars.getOrNull(activeBar + 1)?.step?.chord
         val config = FretboardConfig(
             tuning = tuning,
             mode = ViewMode.IMPROV,
-            rootPc = active?.rootPc ?: 0,
-            scale = Scales.default,
+            rootPc = if (isGuitar) scaleRootPc else (active?.rootPc ?: 0),
+            scale = if (isGuitar) scale else Scales.default,
             chord = active?.quality ?: Chords.MAJOR,
             useFlats = useFlats,
             colorsEnabled = true,
             showDegrees = showDegrees,
             improvActive = active,
-            improvNext = next
+            improvNext = next,
+            improvOverlayScale = isGuitar,
+            improvShowScale = showScale,
+            improvShowChord = showChord
         )
         binding.improvFretboard.config = config
         binding.improvFretboard.contentDescription = buildString {
             append("Mástil de ")
             append(instrumentLabel().lowercase())
+            if (isGuitar) {
+                append(". Escala ")
+                append(scale.name)
+                append(" en ")
+                append(Pitch.name(scaleRootPc, useFlats))
+            }
             if (active != null) {
                 append(". Acorde actual ")
                 append(active.label(useFlats))
             }
         }
-        if (active != null) {
+        if (active != null && !isGuitar) {
             binding.improvFretboard.post { binding.improvFretboard.focusImprovShape() }
         }
     }
@@ -269,6 +369,11 @@ class ImprovisationActivity : AppCompatActivity() {
         val builder = SpannableStringBuilder()
         val start = builder.length
         builder.append(chord.label(useFlats))
+        if (chord.normalizedBarsPerChord != ImprovChord.DEFAULT_BARS_PER_CHORD) {
+            builder.append(" · ")
+            builder.append(chord.normalizedBarsPerChord.toString())
+            builder.append("c")
+        }
         builder.setSpan(
             ForegroundColorSpan(ChordColorProvider.labelColor(chord.rootPc)),
             start,
@@ -282,12 +387,21 @@ class ImprovisationActivity : AppCompatActivity() {
         if (index !in sections.indices) return
         stopPlayback()
         selectedSection = index
-        activeStep = if (sections[index].chords.isEmpty()) {
-            -1
-        } else {
-            firstStepOfSection(index)
-        }
+        setActiveStep(if (sections[index].chords.isEmpty()) -1 else firstStepOfSection(index))
         renderAll()
+    }
+
+    private fun selectStep(stepIndex: Int) {
+        stopPlayback()
+        val step = steps().getOrNull(stepIndex) ?: return
+        selectedSection = step.sectionIndex
+        setActiveStep(stepIndex)
+        renderAll()
+    }
+
+    private fun setActiveStep(stepIndex: Int) {
+        activeStep = stepIndex
+        activeBar = firstBarOfStep(stepIndex)
     }
 
     private fun addSection() {
@@ -295,7 +409,7 @@ class ImprovisationActivity : AppCompatActivity() {
         showNameDialog("Nueva sección", "Sección ${sections.size + 1}", "Añadir") { name ->
             sections.add(ImprovSection(name))
             selectedSection = sections.lastIndex
-            activeStep = -1
+            setActiveStep(-1)
             saveSections()
             renderAll()
         }
@@ -320,11 +434,13 @@ class ImprovisationActivity : AppCompatActivity() {
         stopPlayback()
         sections.removeAt(index)
         selectedSection = selectedSection.coerceIn(0, sections.lastIndex)
-        activeStep = if (sections[selectedSection].chords.isEmpty()) {
-            -1
-        } else {
-            firstStepOfSection(selectedSection)
-        }
+        setActiveStep(
+            if (sections[selectedSection].chords.isEmpty()) {
+                -1
+            } else {
+                firstStepOfSection(selectedSection)
+            }
+        )
         saveSections()
         renderAll()
     }
@@ -349,13 +465,13 @@ class ImprovisationActivity : AppCompatActivity() {
         val section = sections.getOrNull(selectedSection) ?: return
         val initial = steps().getOrNull(activeStep)?.chord
             ?: section.chords.lastOrNull()
-            ?: ImprovChord(0, Chords.MAJOR)
+            ?: ImprovChord(scaleRootPc, Chords.MAJOR)
         showChordDialog("Añadir acorde", initial, "Añadir") { chord ->
             stopPlayback()
             val current = sections[selectedSection]
             val chords = current.chords + chord
             sections[selectedSection] = current.copy(chords = chords)
-            activeStep = firstStepOfSection(selectedSection) + chords.lastIndex
+            setActiveStep(firstStepOfSection(selectedSection) + chords.lastIndex)
             saveSections()
             renderAll()
         }
@@ -374,7 +490,7 @@ class ImprovisationActivity : AppCompatActivity() {
             chords[chordIndex] = updated
             sections[sectionIndex] = current.copy(chords = chords)
             selectedSection = sectionIndex
-            activeStep = firstStepOfSection(sectionIndex) + chordIndex
+            setActiveStep(firstStepOfSection(sectionIndex) + chordIndex)
             saveSections()
             renderAll()
         }
@@ -388,11 +504,13 @@ class ImprovisationActivity : AppCompatActivity() {
         chords.removeAt(chordIndex)
         sections[sectionIndex] = section.copy(chords = chords)
         selectedSection = sectionIndex
-        activeStep = if (chords.isEmpty()) {
-            -1
-        } else {
-            firstStepOfSection(sectionIndex) + chordIndex.coerceAtMost(chords.lastIndex)
-        }
+        setActiveStep(
+            if (chords.isEmpty()) {
+                -1
+            } else {
+                firstStepOfSection(sectionIndex) + chordIndex.coerceAtMost(chords.lastIndex)
+            }
+        )
         saveSections()
         renderAll()
     }
@@ -467,6 +585,18 @@ class ImprovisationActivity : AppCompatActivity() {
 
         dialogBinding.principalSwitch.isChecked = initial.principalOnly
 
+        val barsOptions = ImprovChord.BARS_OPTIONS
+        dialogBinding.barsSpinner.adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_item,
+            barsOptions.map { it.toString() }
+        ).apply {
+            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        }
+        dialogBinding.barsSpinner.setSelection(
+            barsOptions.indexOf(initial.normalizedBarsPerChord).coerceAtLeast(0)
+        )
+
         val hitsOptions = ImprovChord.HITS_OPTIONS
         dialogBinding.hitsSpinner.adapter = ArrayAdapter(
             this,
@@ -478,6 +608,9 @@ class ImprovisationActivity : AppCompatActivity() {
         dialogBinding.hitsSpinner.setSelection(
             hitsOptions.indexOf(initial.normalizedHitsPerBar).coerceAtLeast(0)
         )
+        val hitsVisibility = if (isGuitar) View.GONE else View.VISIBLE
+        dialogBinding.hitsLabel.visibility = hitsVisibility
+        dialogBinding.hitsSpinner.visibility = hitsVisibility
 
         MaterialAlertDialogBuilder(this)
             .setTitle(title)
@@ -487,6 +620,9 @@ class ImprovisationActivity : AppCompatActivity() {
                 val quality = Chords.all.getOrNull(
                     dialogBinding.qualitySpinner.selectedItemPosition
                 ) ?: Chords.MAJOR
+                val bars = barsOptions.getOrNull(
+                    dialogBinding.barsSpinner.selectedItemPosition
+                ) ?: ImprovChord.DEFAULT_BARS_PER_CHORD
                 val hits = hitsOptions.getOrNull(
                     dialogBinding.hitsSpinner.selectedItemPosition
                 ) ?: ImprovChord.DEFAULT_HITS_PER_BAR
@@ -495,7 +631,8 @@ class ImprovisationActivity : AppCompatActivity() {
                         rootPc = root,
                         quality = quality,
                         principalOnly = dialogBinding.principalSwitch.isChecked,
-                        hitsPerBar = hits
+                        hitsPerBar = hits,
+                        barsPerChord = bars
                     )
                 )
             }
@@ -520,11 +657,61 @@ class ImprovisationActivity : AppCompatActivity() {
                 stopPlayback()
                 bpm = (input.text.toString().toIntOrNull() ?: DEFAULT_BPM)
                     .coerceIn(MIN_BPM, MAX_BPM)
-                improvisationRepository.saveBpm(bpm)
+                improvisationRepository.saveBpm(instrument, bpm)
                 renderHeader()
             }
             .setNegativeButton("Cancelar", null)
             .show()
+    }
+
+    private fun showScaleRootMenu(anchor: View) {
+        stopPlayback()
+        val popup = PopupMenu(this, anchor)
+        (0..11).forEach { pitchClass ->
+            popup.menu.add(Menu.NONE, pitchClass, pitchClass, Pitch.name(pitchClass, useFlats))
+        }
+        popup.setOnMenuItemClickListener { item ->
+            if (item.itemId in 0..11) {
+                scaleRootAuto = false
+                scaleRootPc = item.itemId
+                improvisationRepository.saveScaleRoot(scaleRootPc)
+                renderFretboard()
+                renderGuitarControls()
+            }
+            true
+        }
+        popup.show()
+    }
+
+    private fun showScaleDialog() {
+        stopPlayback()
+        val labels = Scales.all.map { it.name }.toTypedArray()
+        val checked = Scales.all.indexOf(scale).coerceAtLeast(0)
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Escala de improvisación")
+            .setSingleChoiceItems(labels, checked) { dialog, which ->
+                dialog.dismiss()
+                scale = Scales.all[which]
+                improvisationRepository.saveScaleIndex(which)
+                renderFretboard()
+                renderGuitarControls()
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun toggleScaleLayer() {
+        showScale = !showScale
+        improvisationRepository.saveShowScale(showScale)
+        renderFretboard()
+        renderGuitarControls()
+    }
+
+    private fun toggleChordLayer() {
+        showChord = !showChord
+        improvisationRepository.saveShowChord(showChord)
+        renderFretboard()
+        renderGuitarControls()
     }
 
     private fun togglePlayback() {
@@ -536,66 +723,107 @@ class ImprovisationActivity : AppCompatActivity() {
     }
 
     private fun startPlayback() {
-        val allSteps = steps()
-        if (allSteps.isEmpty()) {
+        val bars = bars()
+        if (bars.isEmpty()) {
             Toast.makeText(this, "Añade acordes a la sección", Toast.LENGTH_SHORT).show()
             return
         }
         playing = true
-        if (activeStep !in allSteps.indices) activeStep = 0
+        if (activeBar !in bars.indices) {
+            setActiveStep(0)
+        } else {
+            activeStep = bars[activeBar].stepIndex
+            selectedSection = bars[activeBar].step.sectionIndex
+        }
+        barStartedAt = SystemClock.elapsedRealtime()
         renderAll()
-        playArpeggio()
-        scheduleNext()
+        beginBar()
     }
 
-    private fun scheduleNext() {
+    private fun beginBar() {
+        barStartedAt = SystemClock.elapsedRealtime()
+        startProgressTicker()
+        if (!silent) {
+            val bar = bars().getOrNull(activeBar)
+            if (bar != null && bar.barInChord == 0) playArpeggio()
+        }
+        scheduleBarAdvance()
+    }
+
+    private fun scheduleBarAdvance() {
         playbackRunnable?.let { handler.removeCallbacks(it) }
         val runnable = object : Runnable {
             override fun run() {
                 if (!playing) return
-                val allSteps = steps()
-                val next = activeStep + 1
-                if (next >= allSteps.size) {
+                val bars = bars()
+                val next = activeBar + 1
+                if (next >= bars.size) {
                     stopPlayback()
                     returnToStart()
                     return
                 }
-                activeStep = next
-                selectedSection = allSteps[next].sectionIndex
+                activeBar = next
+                activeStep = bars[next].stepIndex
+                selectedSection = bars[next].step.sectionIndex
+                barStartedAt = SystemClock.elapsedRealtime()
                 renderAll()
-                playArpeggio()
-                handler.postDelayed(this, chordDurationMs())
+                beginBar()
             }
         }
         playbackRunnable = runnable
-        handler.postDelayed(runnable, chordDurationMs())
+        handler.postDelayed(runnable, barDurationMs())
+    }
+
+    private fun startProgressTicker() {
+        progressRunnable?.let { handler.removeCallbacks(it) }
+        val runnable = object : Runnable {
+            override fun run() {
+                if (!playing) return
+                binding.barProgress.progress = currentBarProgress()
+                handler.postDelayed(this, PROGRESS_TICK_MS)
+            }
+        }
+        progressRunnable = runnable
+        handler.post(runnable)
+    }
+
+    private fun currentBarProgress(): Int {
+        if (!playing) return 0
+        val elapsed = SystemClock.elapsedRealtime() - barStartedAt
+        val fraction = elapsed.toFloat() / barDurationMs().toFloat()
+        return (fraction.coerceIn(0f, 1f) * PROGRESS_MAX).toInt()
     }
 
     private fun stopPlayback() {
         playing = false
         playbackRunnable?.let { handler.removeCallbacks(it) }
         playbackRunnable = null
+        progressRunnable?.let { handler.removeCallbacks(it) }
+        progressRunnable = null
         arpeggioRunnable?.let { arpeggioHandler.removeCallbacks(it) }
         arpeggioRunnable = null
         if (::binding.isInitialized) renderHeader()
     }
 
     private fun returnToStart() {
-        val allSteps = steps()
-        if (allSteps.isEmpty()) {
-            activeStep = -1
+        val bars = bars()
+        if (bars.isEmpty()) {
             selectedSection = 0
+            setActiveStep(-1)
         } else {
-            activeStep = 0
-            selectedSection = allSteps[0].sectionIndex
+            selectedSection = bars[0].step.sectionIndex
+            setActiveStep(0)
         }
         renderAll()
     }
 
     private fun playArpeggio() {
+        if (silent) return
+        val guitarSynth = synth ?: return
         arpeggioRunnable?.let { arpeggioHandler.removeCallbacks(it) }
         arpeggioRunnable = null
-        val chord = steps().getOrNull(activeStep)?.chord ?: return
+        val bar = bars().getOrNull(activeBar) ?: return
+        val chord = bar.step.chord
         val allPositions = binding.improvFretboard.improvArpeggioPositions()
         if (allPositions.isEmpty()) return
         val positions = if (chord.principalOnly) {
@@ -604,14 +832,14 @@ class ImprovisationActivity : AppCompatActivity() {
             allPositions
         }
         val hits = chord.normalizedHitsPerBar
-        val stepMs = (chordDurationMs() / hits).coerceAtLeast(MIN_NOTE_GAP_MS)
+        val stepMs = (stepDurationMs(bar.step) / hits).coerceAtLeast(MIN_NOTE_GAP_MS)
         var hit = 0
         val runnable = object : Runnable {
             override fun run() {
                 if (!playing) return
                 val (stringIndex, fret) = positions[hit % positions.size]
                 val string = tuning.strings.getOrNull(stringIndex) ?: return
-                synth.pluck(stringIndex, string.openMidi + fret)
+                guitarSynth.pluck(stringIndex, string.openMidi + fret)
                 binding.improvFretboard.highlightNote(stringIndex, fret, reveal = false)
                 hit++
                 if (hit < hits) {
@@ -638,31 +866,56 @@ class ImprovisationActivity : AppCompatActivity() {
 
     private fun beatDurationMs(): Long = 60_000L / bpm
 
-    private fun chordDurationMs(): Long = beatDurationMs() * BEATS_PER_CHORD
+    private fun barDurationMs(): Long = beatDurationMs() * BEATS_PER_BAR
+
+    private fun stepDurationMs(step: ImprovStep): Long =
+        barDurationMs() * step.chord.normalizedBarsPerChord
+
+    private fun bars(): List<ImprovBar> = stepsUseCase.bars(sections)
 
     private fun steps(): List<ImprovStep> = stepsUseCase(sections)
 
     private fun firstStepOfSection(index: Int): Int =
         sections.take(index).sumOf { it.chords.size }
 
+    private fun firstBarOfStep(stepIndex: Int): Int {
+        if (stepIndex < 0) return -1
+        var offset = 0
+        steps().forEachIndexed { index, step ->
+            if (index == stepIndex) return offset
+            offset += step.chord.normalizedBarsPerChord
+        }
+        return -1
+    }
+
+    private fun firstChordRoot(): Int =
+        sections.firstOrNull()?.chords?.firstOrNull()?.rootPc ?: 0
+
+    private fun syncScaleRootFromProgression() {
+        if (scaleRootAuto) scaleRootPc = firstChordRoot()
+    }
+
     private fun instrumentLabel(): String = when (tuning.strings.size) {
         4 -> "Bajo 4"
         5 -> "Bajo 5"
-        else -> "Bajo"
+        else -> "Guitarra"
     }
 
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
 
     private fun saveSections() {
-        improvisationRepository.saveSections(sections)
+        syncScaleRootFromProgression()
+        improvisationRepository.saveSections(instrument, sections)
     }
 
     private companion object {
         const val DEFAULT_BPM = 80
         const val MIN_BPM = 40
         const val MAX_BPM = 220
-        const val BEATS_PER_CHORD = 4L
+        const val BEATS_PER_BAR = 4L
         const val MIN_NOTE_GAP_MS = 30L
+        const val PROGRESS_MAX = 1000
+        const val PROGRESS_TICK_MS = 50L
     }
 }

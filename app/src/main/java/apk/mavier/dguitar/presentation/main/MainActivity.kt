@@ -287,8 +287,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showModeMenu(anchor: View) {
+        val popup = PopupMenu(this, anchor)
         if (isBass()) {
-            val popup = PopupMenu(this, anchor)
             popup.menu.add(Menu.NONE, 0, 0, modeLabel(ViewMode.SCALE))
             popup.menu.add(Menu.NONE, 1, 1, modeLabel(ViewMode.FREE))
             popup.menu.add(Menu.NONE, 2, 2, "Improvisación")
@@ -300,16 +300,22 @@ class MainActivity : AppCompatActivity() {
                 }
                 true
             }
-            popup.show()
-            return
+        } else {
+            popup.menu.add(Menu.NONE, 0, 0, modeLabel(ViewMode.SCALE))
+            popup.menu.add(Menu.NONE, 1, 1, modeLabel(ViewMode.CHORD))
+            popup.menu.add(Menu.NONE, 2, 2, modeLabel(ViewMode.FREE))
+            popup.menu.add(Menu.NONE, 3, 3, "Improvisación")
+            popup.setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    0 -> updateConfig(config.copy(mode = ViewMode.SCALE))
+                    1 -> updateConfig(config.copy(mode = ViewMode.CHORD))
+                    2 -> updateConfig(config.copy(mode = ViewMode.FREE))
+                    3 -> openImprovisation()
+                }
+                true
+            }
         }
-        showMenu(
-            anchor,
-            listOf(ViewMode.SCALE, ViewMode.CHORD, ViewMode.FREE),
-            { modeLabel(it) }
-        ) { mode ->
-            updateConfig(config.copy(mode = mode))
-        }
+        popup.show()
     }
 
     private fun openImprovisation() {

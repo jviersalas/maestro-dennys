@@ -23,4 +23,10 @@ internal object PreferenceKeys {
 
     const val IMPROV_BPM = "improv_bpm"
     const val IMPROV_SECTIONS = "improv_sections"
+    const val IMPROV_BPM_GUITAR = "improv_bpm_guitar"
+    const val IMPROV_SECTIONS_GUITAR = "improv_sections_guitar"
+    const val IMPROV_SCALE_ROOT = "improv_scale_root"
+    const val IMPROV_SCALE = "improv_scale"
+    const val IMPROV_SHOW_SCALE = "improv_show_scale"
+    const val IMPROV_SHOW_CHORD = "improv_show_chord"
 }

@@ -5,7 +5,9 @@ import android.content.SharedPreferences
 import apk.mavier.dguitar.data.preferences.PreferenceKeys
 import apk.mavier.dguitar.domain.model.Chords
 import apk.mavier.dguitar.domain.model.ImprovChord
+import apk.mavier.dguitar.domain.model.ImprovInstrument
 import apk.mavier.dguitar.domain.model.ImprovSection
+import apk.mavier.dguitar.domain.model.Scales
 import apk.mavier.dguitar.domain.repository.ImprovisationRepository
 import org.json.JSONArray
 import org.json.JSONObject
@@ -16,8 +18,8 @@ class SharedPreferencesImprovisationRepository(context: Context) :
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PreferenceKeys.FILE, Context.MODE_PRIVATE)
 
-    override fun loadSections(): List<ImprovSection> {
-        val raw = prefs.getString(PreferenceKeys.IMPROV_SECTIONS, null)
+    override fun loadSections(instrument: ImprovInstrument): List<ImprovSection> {
+        val raw = prefs.getString(sectionsKey(instrument), null)
             ?: return defaultSections()
         return try {
             val array = JSONArray(raw)
@@ -38,7 +40,11 @@ class SharedPreferencesImprovisationRepository(context: Context) :
                                 .optInt("hits", ImprovChord.DEFAULT_HITS_PER_BAR)
                                 .takeIf { it in ImprovChord.HITS_OPTIONS }
                                 ?: ImprovChord.DEFAULT_HITS_PER_BAR
-                            chords.add(ImprovChord(root, quality, principal, hits))
+                            val bars = chordObject
+                                .optInt("bars", ImprovChord.DEFAULT_BARS_PER_CHORD)
+                                .takeIf { it in ImprovChord.BARS_OPTIONS }
+                                ?: ImprovChord.DEFAULT_BARS_PER_CHORD
+                            chords.add(ImprovChord(root, quality, principal, hits, bars))
                         }
                     }
                 }
@@ -50,7 +56,7 @@ class SharedPreferencesImprovisationRepository(context: Context) :
         }
     }
 
-    override fun saveSections(sections: List<ImprovSection>) {
+    override fun saveSections(instrument: ImprovInstrument, sections: List<ImprovSection>) {
         val array = JSONArray()
         for (section in sections) {
             val sectionObject = JSONObject()
@@ -62,20 +68,23 @@ class SharedPreferencesImprovisationRepository(context: Context) :
                 chordObject.put("quality", Chords.all.indexOf(chord.quality))
                 chordObject.put("principal", chord.principalOnly)
                 chordObject.put("hits", chord.normalizedHitsPerBar)
+                chordObject.put("bars", chord.normalizedBarsPerChord)
                 chords.put(chordObject)
             }
             sectionObject.put("chords", chords)
             array.put(sectionObject)
         }
-        prefs.edit().putString(PreferenceKeys.IMPROV_SECTIONS, array.toString()).apply()
+        prefs.edit()
+            .putString(sectionsKey(instrument), array.toString())
+            .apply()
     }
 
-    override fun loadBpm(): Int =
-        prefs.getInt(PreferenceKeys.IMPROV_BPM, DEFAULT_BPM).coerceIn(MIN_BPM, MAX_BPM)
+    override fun loadBpm(instrument: ImprovInstrument): Int =
+        prefs.getInt(bpmKey(instrument), DEFAULT_BPM).coerceIn(MIN_BPM, MAX_BPM)
 
-    override fun saveBpm(bpm: Int) {
+    override fun saveBpm(instrument: ImprovInstrument, bpm: Int) {
         prefs.edit()
-            .putInt(PreferenceKeys.IMPROV_BPM, bpm.coerceIn(MIN_BPM, MAX_BPM))
+            .putInt(bpmKey(instrument), bpm.coerceIn(MIN_BPM, MAX_BPM))
             .apply()
     }
 
@@ -86,6 +95,51 @@ class SharedPreferencesImprovisationRepository(context: Context) :
         prefs.edit().putBoolean(PreferenceKeys.DEGREES, show).apply()
     }
 
+    override fun loadScaleRoot(): Int =
+        prefs.getInt(PreferenceKeys.IMPROV_SCALE_ROOT, NO_SCALE_ROOT)
+
+    override fun saveScaleRoot(rootPc: Int) {
+        prefs.edit()
+            .putInt(PreferenceKeys.IMPROV_SCALE_ROOT, ((rootPc % 12) + 12) % 12)
+            .apply()
+    }
+
+    override fun loadScaleIndex(): Int =
+        prefs.getInt(
+            PreferenceKeys.IMPROV_SCALE,
+            Scales.all.indexOf(Scales.PENTATONIC_MINOR)
+        )
+
+    override fun saveScaleIndex(index: Int) {
+        prefs.edit().putInt(PreferenceKeys.IMPROV_SCALE, index).apply()
+    }
+
+    override fun loadShowScale(): Boolean =
+        prefs.getBoolean(PreferenceKeys.IMPROV_SHOW_SCALE, true)
+
+    override fun saveShowScale(show: Boolean) {
+        prefs.edit().putBoolean(PreferenceKeys.IMPROV_SHOW_SCALE, show).apply()
+    }
+
+    override fun loadShowChord(): Boolean =
+        prefs.getBoolean(PreferenceKeys.IMPROV_SHOW_CHORD, true)
+
+    override fun saveShowChord(show: Boolean) {
+        prefs.edit().putBoolean(PreferenceKeys.IMPROV_SHOW_CHORD, show).apply()
+    }
+
+    private fun sectionsKey(instrument: ImprovInstrument): String =
+        when (instrument) {
+            ImprovInstrument.GUITAR -> PreferenceKeys.IMPROV_SECTIONS_GUITAR
+            ImprovInstrument.BASS -> PreferenceKeys.IMPROV_SECTIONS
+        }
+
+    private fun bpmKey(instrument: ImprovInstrument): String =
+        when (instrument) {
+            ImprovInstrument.GUITAR -> PreferenceKeys.IMPROV_BPM_GUITAR
+            ImprovInstrument.BASS -> PreferenceKeys.IMPROV_BPM
+        }
+
     private fun defaultSections(): List<ImprovSection> =
         listOf(ImprovSection("Intro"))
 
@@ -93,5 +147,6 @@ class SharedPreferencesImprovisationRepository(context: Context) :
         const val DEFAULT_BPM = 80
         const val MIN_BPM = 40
         const val MAX_BPM = 220
+        const val NO_SCALE_ROOT = -1
     }
 }

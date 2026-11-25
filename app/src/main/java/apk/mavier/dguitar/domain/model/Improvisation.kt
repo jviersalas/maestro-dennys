@@ -1,16 +1,22 @@
 package apk.mavier.dguitar.domain.model
 
+enum class ImprovInstrument { GUITAR, BASS }
+
 data class ImprovChord(
     val rootPc: Int,
     val quality: ChordQuality,
     val principalOnly: Boolean = false,
-    val hitsPerBar: Int = DEFAULT_HITS_PER_BAR
+    val hitsPerBar: Int = DEFAULT_HITS_PER_BAR,
+    val barsPerChord: Int = DEFAULT_BARS_PER_CHORD
 ) {
     fun label(useFlats: Boolean): String =
         Pitch.name(rootPc, useFlats) + quality.symbol
 
     val normalizedHitsPerBar: Int
         get() = if (hitsPerBar in HITS_OPTIONS) hitsPerBar else DEFAULT_HITS_PER_BAR
+
+    val normalizedBarsPerChord: Int
+        get() = if (barsPerChord in BARS_OPTIONS) barsPerChord else DEFAULT_BARS_PER_CHORD
 
     fun notes(useFlats: Boolean): List<String> =
         quality.pitchClasses(rootPc)
@@ -28,6 +34,8 @@ data class ImprovChord(
     companion object {
         const val DEFAULT_HITS_PER_BAR = 4
         val HITS_OPTIONS = listOf(8, 4, 2, 1)
+        const val DEFAULT_BARS_PER_CHORD = 1
+        val BARS_OPTIONS = listOf(1, 2, 4, 8)
     }
 }
 
@@ -43,6 +51,16 @@ data class ImprovStep(
     val chord: ImprovChord
 )
 
+data class ImprovBar(
+    val globalIndex: Int,
+    val barInChord: Int,
+    val barsInChord: Int,
+    val stepIndex: Int,
+    val step: ImprovStep
+) {
+    val globalBar: Int get() = globalIndex + 1
+}
+
 object Improvisation {
 
     fun steps(sections: List<ImprovSection>): List<ImprovStep> =
@@ -51,6 +69,31 @@ object Improvisation {
                 ImprovStep(sectionIndex, chordIndex, section.name, chord)
             }
         }
+
+    fun bars(sections: List<ImprovSection>): List<ImprovBar> {
+        val result = ArrayList<ImprovBar>()
+        steps(sections).forEachIndexed { stepIndex, step ->
+            val barsInChord = step.chord.normalizedBarsPerChord
+            for (barInChord in 0 until barsInChord) {
+                result.add(
+                    ImprovBar(
+                        globalIndex = result.size,
+                        barInChord = barInChord,
+                        barsInChord = barsInChord,
+                        stepIndex = stepIndex,
+                        step = step
+                    )
+                )
+            }
+        }
+        return result
+    }
+
+    fun totalBars(sections: List<ImprovSection>): Int =
+        steps(sections).sumOf { it.chord.normalizedBarsPerChord }
+
+    fun barAt(sections: List<ImprovSection>, index: Int): ImprovBar? =
+        bars(sections).getOrNull(index)
 
     fun roleName(relativeSemitones: Int): String {
         val value = ((relativeSemitones % 12) + 12) % 12
