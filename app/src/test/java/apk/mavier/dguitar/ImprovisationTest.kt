@@ -4,6 +4,8 @@ import apk.mavier.dguitar.domain.model.Chords
 import apk.mavier.dguitar.domain.model.ImprovChord
 import apk.mavier.dguitar.domain.model.ImprovSection
 import apk.mavier.dguitar.domain.model.Improvisation
+import apk.mavier.dguitar.domain.model.SequencePositions
+import apk.mavier.dguitar.domain.model.Tunings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -93,5 +95,87 @@ class ImprovisationTest {
         assertTrue(Improvisation.bars(emptyList()).isEmpty())
         assertEquals(0, Improvisation.totalBars(emptyList()))
         assertEquals(null, Improvisation.barAt(emptyList(), 0))
+    }
+
+    @Test
+    fun bassArpeggioAscendsFromLowestRoot() {
+        assertEquals(
+            listOf(36, 40, 43, 48),
+            Improvisation.ascendingChordMidi(36, listOf(0, 4, 7), 4)
+        )
+        assertEquals(
+            listOf(36, 40, 43, 48, 52, 55, 60, 64),
+            Improvisation.ascendingChordMidi(36, listOf(0, 4, 7), 8)
+        )
+        assertEquals(
+            listOf(36),
+            Improvisation.ascendingChordMidi(36, listOf(0, 4, 7), 1)
+        )
+        assertEquals(
+            listOf(35, 38, 42, 47),
+            Improvisation.ascendingChordMidi(35, listOf(0, 3, 7), 4)
+        )
+    }
+
+    @Test
+    fun gMajorArpeggioStartsOnTheLowEAndUsesClosestStrings() {
+        val positions = Improvisation.ascendingChordPositions(
+            43,
+            Chords.MAJOR.intervals,
+            4,
+            Tunings.STANDARD,
+            22
+        )
+        assertEquals(
+            listOf(5 to 3, 4 to 2, 4 to 5, 3 to 5),
+            positions.map { it.stringIndex to it.fret }
+        )
+    }
+
+    @Test
+    fun dMajorArpeggioStartsOnTheAStringFifthFret() {
+        val positions = Improvisation.ascendingChordPositions(
+            50,
+            Chords.MAJOR.intervals,
+            3,
+            Tunings.STANDARD,
+            22
+        )
+        assertEquals(
+            listOf(4 to 5, 3 to 4, 2 to 2),
+            positions.map { it.stringIndex to it.fret }
+        )
+    }
+
+    @Test
+    fun bMinorArpeggioStartsOnTheAStringSecondFret() {
+        val positions = Improvisation.ascendingChordPositions(
+            47,
+            Chords.MINOR.intervals,
+            4,
+            Tunings.STANDARD,
+            22
+        )
+        assertEquals(
+            listOf(4 to 2, 4 to 5, 3 to 4, 2 to 4),
+            positions.map { it.stringIndex to it.fret }
+        )
+    }
+
+    @Test
+    fun bassGArpeggioUsesTheThickStringsAndClosestFrets() {
+        val root = SequencePositions.lowestRootPosition(7, Tunings.BASS_4, 22)!!
+        val rootMidi = Tunings.BASS_4.strings[root.stringIndex].openMidi + root.fret
+        val positions = Improvisation.ascendingChordPositions(
+            rootMidi,
+            Chords.MAJOR.intervals,
+            4,
+            Tunings.BASS_4,
+            22
+        )
+        assertEquals(
+            listOf(3 to 3, 2 to 2, 2 to 5, 1 to 5),
+            positions.map { it.stringIndex to it.fret }
+        )
     }
 }

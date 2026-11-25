@@ -30,4 +30,5 @@ internal object PreferenceKeys {
     const val IMPROV_SHOW_SCALE = "improv_show_scale"
     const val IMPROV_SHOW_CHORD = "improv_show_chord"
     const val IMPROV_COLORS = "improv_colors"
+    const val IMPROV_METRONOME = "improv_metronome"
 }

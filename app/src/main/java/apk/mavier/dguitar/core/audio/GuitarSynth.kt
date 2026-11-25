@@ -11,11 +11,17 @@ import kotlin.random.Random
 
 class GuitarSynth {
 
+    @Volatile
+    var bassMode: Boolean = false
+
     private companion object {
         const val SAMPLE_RATE = 44100
         const val MAX_VOICES = 8
+        const val BASS_MAX_VOICES = 4
         const val CHUNK = 512
         const val MASTER_GAIN = 0.22f
+        const val BASS_MASTER_GAIN = 0.15f
+        const val BASS_LOWPASS_ALPHA = 0.10f
     }
 
     private var track: AudioTrack? = null
@@ -103,11 +109,13 @@ class GuitarSynth {
 
     fun pluck(stringIndex: Int, midi: Int) {
         if (!running) return
-        while (voices.size >= MAX_VOICES) {
+        val isBass = bassMode
+        val maxVoices = if (isBass) BASS_MAX_VOICES else MAX_VOICES
+        while (voices.size >= maxVoices) {
             val oldest = voices.minByOrNull { it.ageSamples } ?: break
             voices.remove(oldest)
         }
-        voices.add(Voice(frequency(midi), stringIndex))
+        voices.add(Voice(frequency(midi), stringIndex, isBass))
     }
 
     private fun frequency(midi: Int): Double = 440.0 * 2.0.pow((midi - 69) / 12.0)
@@ -115,8 +123,10 @@ class GuitarSynth {
     private fun renderLoop() {
         val audioTrack = track ?: return
         val buffer = ShortArray(CHUNK)
+        var bassFilter = 0f
 
         while (running) {
+            val isBass = bassMode
             for (i in 0 until CHUNK) {
                 var mix = 0f
                 var index = 0
@@ -129,7 +139,11 @@ class GuitarSynth {
                         index++
                     }
                 }
-                mix *= MASTER_GAIN
+                if (isBass) {
+                    bassFilter += (mix - bassFilter) * BASS_LOWPASS_ALPHA
+                    mix = bassFilter
+                }
+                mix *= if (isBass) BASS_MASTER_GAIN else MASTER_GAIN
                 mix /= (1f + abs(mix))
                 buffer[i] = (mix.coerceIn(-1f, 1f) * 32767f).toInt().toShort()
             }
@@ -141,19 +155,29 @@ class GuitarSynth {
         }
     }
 
-    private class Voice(frequency: Double, stringIndex: Int) {
+    private class Voice(frequency: Double, stringIndex: Int, bass: Boolean) {
 
         private val size: Int = max(2, (SAMPLE_RATE / frequency).toInt())
         private val delayLine = FloatArray(size)
         private var cursor = 0
         private var envelope = 1f
-        private val damping: Float = when (stringIndex) {
-            0 -> 0.9986f
-            1 -> 0.9982f
-            2 -> 0.9978f
-            3 -> 0.9974f
-            4 -> 0.9970f
-            else -> 0.9966f
+        private val envelopeDecay: Float = if (bass) 0.99996f else 0.99997f
+        private val damping: Float = if (bass) {
+            when (stringIndex) {
+                0 -> 0.9982f
+                1 -> 0.9978f
+                2 -> 0.9974f
+                else -> 0.9970f
+            }
+        } else {
+            when (stringIndex) {
+                0 -> 0.9986f
+                1 -> 0.9982f
+                2 -> 0.9978f
+                3 -> 0.9974f
+                4 -> 0.9970f
+                else -> 0.9966f
+            }
         }
 
         var ageSamples: Long = 0L
@@ -163,7 +187,11 @@ class GuitarSynth {
             get() = envelope < 0.0006f || ageSamples > SAMPLE_RATE.toLong() * 6L
 
         init {
-            val brightness = (0.34f - stringIndex.coerceIn(0, 5) * 0.03f).coerceAtLeast(0.12f)
+            val brightness = if (bass) {
+                (0.18f - stringIndex.coerceIn(0, 5) * 0.025f).coerceAtLeast(0.08f)
+            } else {
+                (0.34f - stringIndex.coerceIn(0, 5) * 0.03f).coerceAtLeast(0.12f)
+            }
             var previous = 0f
             for (i in delayLine.indices) {
                 val noise = Random.nextFloat() * 2f - 1f
@@ -178,7 +206,7 @@ class GuitarSynth {
             val following = delayLine[(cursor + 1) % size]
             delayLine[cursor] = (current + following) * 0.5f * damping
             cursor = (cursor + 1) % size
-            envelope *= 0.99997f
+            envelope *= envelopeDecay
             return current * envelope
         }
     }

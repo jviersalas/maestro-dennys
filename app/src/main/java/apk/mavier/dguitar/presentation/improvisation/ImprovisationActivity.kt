@@ -2,6 +2,8 @@ package apk.mavier.dguitar.presentation.improvisation
 
 import apk.mavier.dguitar.R
 import android.graphics.Typeface
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -21,6 +23,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import apk.mavier.dguitar.domain.di.DependencyProvider
 import apk.mavier.dguitar.core.audio.GuitarSynth
@@ -34,9 +37,11 @@ import apk.mavier.dguitar.domain.model.ImprovChord
 import apk.mavier.dguitar.domain.model.ImprovInstrument
 import apk.mavier.dguitar.domain.model.ImprovSection
 import apk.mavier.dguitar.domain.model.ImprovStep
+import apk.mavier.dguitar.domain.model.Improvisation
 import apk.mavier.dguitar.domain.model.Pitch
 import apk.mavier.dguitar.domain.model.ScaleMode
 import apk.mavier.dguitar.domain.model.Scales
+import apk.mavier.dguitar.domain.model.SequencePositions
 import apk.mavier.dguitar.domain.model.Tuning
 import apk.mavier.dguitar.domain.model.ViewMode
 import apk.mavier.dguitar.domain.repository.ImprovisationRepository
@@ -44,6 +49,7 @@ import apk.mavier.dguitar.domain.repository.SettingsRepository
 import apk.mavier.dguitar.domain.usecase.GetImprovisationStepsUseCase
 import apk.mavier.dguitar.presentation.theme.ChordColorProvider
 import apk.mavier.dguitar.presentation.ui.FretboardView
+import apk.mavier.dguitar.presentation.ui.applySystemBarInsets
 
 class ImprovisationActivity : AppCompatActivity() {
 
@@ -67,6 +73,7 @@ class ImprovisationActivity : AppCompatActivity() {
     private var showScale = true
     private var showChord = true
     private var showColors = true
+    private var metronomeEnabled = true
     private var scaleRootPc = 0
     private var scaleRootAuto = true
     private var scale: ScaleMode = Scales.PENTATONIC_MINOR
@@ -75,6 +82,9 @@ class ImprovisationActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private var playbackRunnable: Runnable? = null
     private var progressRunnable: Runnable? = null
+    private var metronomeRunnable: Runnable? = null
+    private var beatIndex = 0
+    private var toneGenerator: ToneGenerator? = null
     private val arpeggioHandler = Handler(Looper.getMainLooper())
     private var arpeggioRunnable: Runnable? = null
     private var progressionDialog: AlertDialog? = null
@@ -84,6 +94,8 @@ class ImprovisationActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityImprovisationBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        binding.root.applySystemBarInsets()
 
         val container = (application as DependencyProvider)
         settingsRepository = container.settingsRepository
@@ -100,6 +112,7 @@ class ImprovisationActivity : AppCompatActivity() {
         showScale = improvisationRepository.loadShowScale()
         showChord = improvisationRepository.loadShowChord()
         showColors = improvisationRepository.loadShowColors()
+        metronomeEnabled = improvisationRepository.loadMetronome()
         scale = Scales.all.getOrElse(improvisationRepository.loadScaleIndex()) {
             Scales.PENTATONIC_MINOR
         }
@@ -113,13 +126,16 @@ class ImprovisationActivity : AppCompatActivity() {
 
         binding.barProgress.max = PROGRESS_MAX
 
-        val guitarSynth = GuitarSynth()
+        val guitarSynth = GuitarSynth().apply { bassMode = !isGuitar }
         synth = guitarSynth
         if (!isGuitar) {
             binding.improvFretboard.onNotePlayed = { stringIndex, midi ->
                 guitarSynth.pluck(stringIndex, midi)
             }
         }
+        toneGenerator = runCatching {
+            ToneGenerator(AudioManager.STREAM_MUSIC, METRONOME_VOLUME)
+        }.getOrNull()
 
         binding.backButton.setOnClickListener { finish() }
         binding.playButton.setOnClickListener { togglePlayback() }
@@ -136,6 +152,7 @@ class ImprovisationActivity : AppCompatActivity() {
         binding.showScaleButton.setOnClickListener { toggleScaleLayer() }
         binding.showChordButton.setOnClickListener { toggleChordLayer() }
         binding.colorsButton.setOnClickListener { toggleColors() }
+        binding.metronomeButton.setOnClickListener { toggleMetronome() }
 
         renderAll()
     }
@@ -156,6 +173,9 @@ class ImprovisationActivity : AppCompatActivity() {
         progressionDialog?.dismiss()
         progressionDialog = null
         progressionDialogBinding = null
+        stopMetronome()
+        toneGenerator?.release()
+        toneGenerator = null
         handler.removeCallbacksAndMessages(null)
         arpeggioHandler.removeCallbacksAndMessages(null)
     }
@@ -188,6 +208,9 @@ class ImprovisationActivity : AppCompatActivity() {
         binding.tempoButton.contentDescription = "Cambiar tempo, $bpm BPM"
         binding.progressionButton.contentDescription =
             "Editar progresión, ${sections.size} secciones"
+        binding.metronomeButton.isSelected = metronomeEnabled
+        binding.metronomeButton.contentDescription =
+            if (metronomeEnabled) "Desactivar metrónomo" else "Activar metrónomo"
         binding.playButton.text = if (playing) "Detener" else "Play"
         binding.playButton.isSelected = playing
         binding.playButton.contentDescription =
@@ -725,6 +748,17 @@ class ImprovisationActivity : AppCompatActivity() {
         renderGuitarControls()
     }
 
+    private fun toggleMetronome() {
+        metronomeEnabled = !metronomeEnabled
+        improvisationRepository.saveMetronome(metronomeEnabled)
+        if (metronomeEnabled) {
+            if (playing) startMetronomeForBar()
+        } else {
+            stopMetronome()
+        }
+        renderHeader()
+    }
+
     private fun togglePlayback() {
         if (playing) {
             stopPlayback()
@@ -754,6 +788,7 @@ class ImprovisationActivity : AppCompatActivity() {
     private fun beginBar() {
         barStartedAt = SystemClock.elapsedRealtime()
         startProgressTicker()
+        startMetronomeForBar()
         val bar = bars().getOrNull(activeBar)
         if (bar != null) {
             if (isGuitar) {
@@ -815,9 +850,42 @@ class ImprovisationActivity : AppCompatActivity() {
         playbackRunnable = null
         progressRunnable?.let { handler.removeCallbacks(it) }
         progressRunnable = null
+        stopMetronome()
         arpeggioRunnable?.let { arpeggioHandler.removeCallbacks(it) }
         arpeggioRunnable = null
         if (::binding.isInitialized) renderHeader()
+    }
+
+    private fun startMetronomeForBar() {
+        stopMetronome()
+        if (!metronomeEnabled) return
+        beatIndex = 0
+        playMetronomeBeat()
+        val runnable = object : Runnable {
+            override fun run() {
+                if (!playing || !metronomeEnabled) return
+                beatIndex = (beatIndex + 1) % BEATS_PER_BAR.toInt()
+                playMetronomeBeat()
+                handler.postDelayed(this, beatDurationMs())
+            }
+        }
+        metronomeRunnable = runnable
+        handler.postDelayed(runnable, beatDurationMs())
+    }
+
+    private fun playMetronomeBeat() {
+        val tone = if (beatIndex == 0) {
+            ToneGenerator.TONE_PROP_BEEP
+        } else {
+            ToneGenerator.TONE_PROP_BEEP2
+        }
+        toneGenerator?.startTone(tone, METRONOME_TICK_MS)
+    }
+
+    private fun stopMetronome() {
+        metronomeRunnable?.let { handler.removeCallbacks(it) }
+        metronomeRunnable = null
+        toneGenerator?.stopTone()
     }
 
     private fun returnToStart() {
@@ -839,14 +907,23 @@ class ImprovisationActivity : AppCompatActivity() {
         arpeggioRunnable = null
         val bar = bars().getOrNull(activeBar) ?: return
         val chord = bar.step.chord
-        val allPositions = binding.improvFretboard.improvArpeggioPositions()
-        if (allPositions.isEmpty()) return
-        val positions = if (chord.principalOnly) {
-            listOf(principalPosition(allPositions, chord.rootPc))
-        } else {
-            allPositions
-        }
         val hits = chord.normalizedHitsPerBar
+        val allPositions = binding.improvFretboard.improvArpeggioPositions()
+        val rootPosition = SequencePositions
+            .lowestRootPosition(chord.rootPc, tuning, FretboardView.FRET_COUNT)
+            ?.let { it.stringIndex to it.fret }
+            ?: allPositions.firstOrNull()
+        val positions = if (chord.principalOnly) {
+            listOfNotNull(rootPosition)
+        } else {
+            val ascending = if (rootPosition != null) {
+                ascendingArpeggioPositions(chord, rootPosition, hits)
+            } else {
+                emptyList()
+            }
+            ascending.ifEmpty { allPositions }
+        }
+        if (positions.isEmpty()) return
         val stepMs = (stepDurationMs(bar.step) / hits).coerceAtLeast(MIN_NOTE_GAP_MS)
         var hit = 0
         val runnable = object : Runnable {
@@ -866,42 +943,35 @@ class ImprovisationActivity : AppCompatActivity() {
         arpeggioHandler.post(runnable)
     }
 
+    private fun ascendingArpeggioPositions(
+        chord: ImprovChord,
+        rootPosition: Pair<Int, Int>,
+        hits: Int
+    ): List<Pair<Int, Int>> {
+        val rootString = tuning.strings.getOrNull(rootPosition.first) ?: return emptyList()
+        val rootMidi = rootString.openMidi + rootPosition.second
+        val limit = maxOf(hits, 8).coerceAtMost(16)
+        return Improvisation.ascendingChordPositions(
+            rootMidi,
+            chord.quality.intervals,
+            limit,
+            tuning,
+            FretboardView.FRET_COUNT
+        ).map { it.stringIndex to it.fret }
+    }
+
     private fun playGuideNote(chord: ImprovChord) {
         if (!isGuitar) return
         val guitarSynth = synth ?: return
-        val (stringIndex, fret) = lowestRootPosition(chord.rootPc) ?: return
+        val position = SequencePositions.lowestRootPosition(
+            chord.rootPc,
+            tuning,
+            FretboardView.FRET_COUNT
+        ) ?: return
+        val (stringIndex, fret) = position.stringIndex to position.fret
         val string = tuning.strings.getOrNull(stringIndex) ?: return
         guitarSynth.pluck(stringIndex, string.openMidi + fret)
         binding.improvFretboard.highlightNote(stringIndex, fret, reveal = false)
-    }
-
-    private fun lowestRootPosition(rootPc: Int): Pair<Int, Int>? {
-        var best: Pair<Int, Int>? = null
-        var bestMidi = Int.MAX_VALUE
-        for (stringIndex in tuning.strings.indices) {
-            val openMidi = tuning.strings[stringIndex].openMidi
-            val fret = ((rootPc - openMidi) % 12 + 12) % 12
-            if (fret > FretboardView.FRET_COUNT) continue
-            val midi = openMidi + fret
-            if (midi < bestMidi) {
-                bestMidi = midi
-                best = stringIndex to fret
-            }
-        }
-        return best
-    }
-
-    private fun principalPosition(
-        positions: List<Pair<Int, Int>>,
-        rootPc: Int
-    ): Pair<Int, Int> {
-        val roots = positions.filter { (stringIndex, fret) ->
-            val string = tuning.strings.getOrNull(stringIndex) ?: return@filter false
-            (string.openMidi + fret) % 12 == rootPc
-        }
-        return (roots.ifEmpty { positions }).minBy { (stringIndex, fret) ->
-            tuning.strings[stringIndex].openMidi + fret
-        }
     }
 
     private fun beatDurationMs(): Long = 60_000L / bpm
@@ -957,5 +1027,7 @@ class ImprovisationActivity : AppCompatActivity() {
         const val MIN_NOTE_GAP_MS = 30L
         const val PROGRESS_MAX = 1000
         const val PROGRESS_TICK_MS = 50L
+        const val METRONOME_VOLUME = 70
+        const val METRONOME_TICK_MS = 45
     }
 }

@@ -95,6 +95,41 @@ object Improvisation {
     fun barAt(sections: List<ImprovSection>, index: Int): ImprovBar? =
         bars(sections).getOrNull(index)
 
+    fun ascendingChordPositions(
+        rootMidi: Int,
+        intervals: List<Int>,
+        limit: Int,
+        tuning: Tuning,
+        maxFret: Int
+    ): List<SequencePositions.Position> =
+        ascendingChordMidi(rootMidi, intervals, limit).mapNotNull { midi ->
+            SequencePositions.bestPositionForMidi(midi, tuning, maxFret)
+        }
+
+    fun ascendingChordMidi(
+        rootMidi: Int,
+        intervals: List<Int>,
+        limit: Int
+    ): List<Int> {
+        if (limit <= 0) return emptyList()
+        val steps = intervals
+            .map { ((it % 12) + 12) % 12 }
+            .distinct()
+            .sorted()
+        val result = ArrayList<Int>(limit)
+        result.add(rootMidi)
+        var octave = 0
+        while (result.size < limit && octave <= 4) {
+            for (step in steps) {
+                if (result.size >= limit) break
+                if (octave == 0 && step == 0) continue
+                result.add(rootMidi + octave * 12 + step)
+            }
+            octave++
+        }
+        return result
+    }
+
     fun roleName(relativeSemitones: Int): String {
         val value = ((relativeSemitones % 12) + 12) % 12
         return when (value) {

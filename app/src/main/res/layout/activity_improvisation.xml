@@ -64,6 +64,7 @@
             style="@style/ChipButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
             android:text="Play" />
     </LinearLayout>
 
@@ -112,6 +113,14 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
                 android:text="Tempo 80" />
+
+            <TextView
+                android:id="@+id/metronomeButton"
+                style="@style/ChipButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="Metrónomo" />
 
             <TextView
                 android:id="@+id/scaleRootButton"

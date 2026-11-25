@@ -18,12 +18,12 @@ import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import apk.mavier.dguitar.core.audio.GuitarSynth
 import apk.mavier.dguitar.databinding.ActivityMainBinding
 import apk.mavier.dguitar.domain.di.DependencyProvider
 import apk.mavier.dguitar.databinding.DialogHarmonicCircleBinding
-import apk.mavier.dguitar.domain.model.CagedPatternOccurrence
 import apk.mavier.dguitar.domain.model.ChordQuality
 import apk.mavier.dguitar.domain.model.Chords
 import apk.mavier.dguitar.domain.model.FretboardConfig
@@ -39,6 +39,7 @@ import apk.mavier.dguitar.presentation.improvisation.ImprovisationActivity
 import apk.mavier.dguitar.presentation.theme.ChordColorProvider
 import apk.mavier.dguitar.presentation.tuner.TunerActivity
 import apk.mavier.dguitar.presentation.ui.FretboardView
+import apk.mavier.dguitar.presentation.ui.applySystemBarInsets
 
 class MainActivity : AppCompatActivity() {
 
@@ -59,6 +60,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        binding.root.applySystemBarInsets()
 
         val container = (application as DependencyProvider)
         settingsRepository = container.settingsRepository
@@ -127,6 +130,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderConfig() {
+        synth.bassMode = isBass()
         binding.fretboard.config = config
 
         binding.rootButton.text = Pitch.name(config.rootPc, config.useFlats)
@@ -561,18 +565,28 @@ class MainActivity : AppCompatActivity() {
     private fun startSequence() {
         stopSequence()
 
-        val baseMidi = 60 + config.rootPc
-        val notes = config.scale.exampleSequence.map { baseMidi + it }
-        if (notes.isEmpty()) return
-
-        val occurrence = binding.fretboard.currentSequenceOccurrence()
-        val positions = notes.map { sequencePositionFor(it, occurrence) }
-        val playedFrets = positions.filterNotNull().map { it.fret }
-        val minFret = playedFrets.minOrNull()
-        val maxFret = playedFrets.maxOrNull()
-        if (minFret != null && maxFret != null) {
-            binding.fretboard.focusFretRange(minFret, maxFret)
+        val occurrence = if (config.selectedPattern != null) {
+            binding.fretboard.currentSequenceOccurrence()
+        } else {
+            null
         }
+        val positions = if (occurrence != null) {
+            config.scale.segmentSequence(
+                config.rootPc,
+                config.tuning,
+                occurrence,
+                FretboardView.FRET_COUNT
+            )
+        } else {
+            config.scale.octaveSequence(
+                config.rootPc,
+                config.tuning,
+                FretboardView.FRET_COUNT
+            ).mapNotNull {
+                SequencePositions.freePosition(it, config.tuning, FretboardView.FRET_COUNT)
+            }
+        }
+        if (positions.isEmpty()) return
 
         sequencePlaying = true
         binding.sequenceButton.text = "Detener"
@@ -589,33 +603,21 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 val position = positions[index]
-                if (position != null) {
-                    val playedMidi = position.midi(config.tuning)
-                    synth.pluck(position.stringIndex, playedMidi)
-                    binding.fretboard.highlightNote(
-                        position.stringIndex,
-                        position.fret,
-                        reveal = false
-                    )
-                    binding.sequenceButton.text =
-                        "Detener · ${Pitch.name(Pitch.pitchClass(playedMidi), config.useFlats)}"
-                }
+                val playedMidi = position.midi(config.tuning)
+                synth.pluck(position.stringIndex, playedMidi)
+                binding.fretboard.highlightNote(
+                    position.stringIndex,
+                    position.fret,
+                    reveal = true
+                )
+                binding.sequenceButton.text =
+                    "Detener · ${Pitch.name(Pitch.pitchClass(playedMidi), config.useFlats)}"
                 index++
                 sequenceHandler.postDelayed(this, SEQUENCE_STEP_MS)
             }
         }
         sequenceRunnable = runnable
         sequenceHandler.post(runnable)
-    }
-
-    private fun sequencePositionFor(
-        midi: Int,
-        occurrence: CagedPatternOccurrence?
-    ): SequencePositions.Position? {
-        if (occurrence != null) {
-            SequencePositions.positionInOccurrence(midi, occurrence, config.tuning)?.let { return it }
-        }
-        return SequencePositions.freePosition(midi, config.tuning, FretboardView.FRET_COUNT)
     }
 
     private fun stopSequence() {
