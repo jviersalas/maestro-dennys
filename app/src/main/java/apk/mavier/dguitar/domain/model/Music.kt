@@ -286,6 +286,9 @@ data class FretboardConfig(
     val circleOverrides: Map<Int, ChordQuality> = emptyMap(),
     val improvActive: ImprovChord? = null,
     val improvNext: ImprovChord? = null,
+    val improvOverlayScale: Boolean = false,
+    val improvShowScale: Boolean = true,
+    val improvShowChord: Boolean = true,
     val selectedPattern: Int? = null,
     val chordPattern: Int? = null
 )

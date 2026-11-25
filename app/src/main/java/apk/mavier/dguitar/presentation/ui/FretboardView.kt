@@ -646,6 +646,7 @@ class FretboardView @JvmOverloads constructor(
 
     private fun drawImprovLine(canvas: Canvas) {
         if (config.mode != ViewMode.IMPROV) return
+        if (config.improvOverlayScale) return
         val active = config.improvActive ?: return
 
         improvLinePaint.color = ChordColorProvider.baseColor(active.rootPc)
@@ -979,23 +980,46 @@ class FretboardView @JvmOverloads constructor(
                         val next = cfg.improvNext
                         val activeContains = active?.contains(pitchClass) == true
                         val nextContains = next?.contains(pitchClass) == true
-                        if (nextContains && !activeContains) {
-                            drawImprovNote(
-                                canvas, x, y, pitchClass, next!!,
-                                dimmed = true, role = null
-                            )
+
+                        if (cfg.improvOverlayScale && cfg.improvShowScale) {
+                            val degree = cfg.scale.degreeOf(cfg.rootPc, pitchClass)
+                            if (degree > 0 && pitchClass in scaleSet) {
+                                val fill = if (cfg.colorsEnabled) {
+                                    NoteColorProvider.scaleDegreeColor(degree)
+                                } else {
+                                    NoteColorProvider.NEUTRAL_FILL
+                                }
+                                drawNote(
+                                    canvas, x, y, pitchClass, cfg, fill,
+                                    showText = true, radiusScale = 1f
+                                )
+                                val coveredByChord = cfg.improvShowChord && activeContains
+                                if (!coveredByChord) {
+                                    drawScaleDegreeBadge(canvas, x, y, noteRadius, cfg, degree)
+                                }
+                            }
                         }
-                        if (activeContains) {
-                            val activeChord = active!!
-                            drawImprovNote(
-                                canvas, x, y, pitchClass, activeChord,
-                                dimmed = false, role = activeChord.roleLabel(pitchClass)
-                            )
+                        if (cfg.improvShowChord) {
+                            if (nextContains && !activeContains) {
+                                drawImprovNote(
+                                    canvas, x, y, pitchClass, next!!,
+                                    dimmed = true, role = null
+                                )
+                            }
+                            if (activeContains) {
+                                val activeChord = active!!
+                                drawImprovNote(
+                                    canvas, x, y, pitchClass, activeChord,
+                                    dimmed = false, role = activeChord.roleLabel(pitchClass)
+                                )
+                            }
                         }
                     }
                 }
 
-                if (pitchClass == cfg.rootPc && cfg.mode != ViewMode.IMPROV) {
+                val showImprovRoot = cfg.mode == ViewMode.IMPROV &&
+                    cfg.improvOverlayScale && cfg.improvShowScale
+                if (pitchClass == cfg.rootPc && (cfg.mode != ViewMode.IMPROV || showImprovRoot)) {
                     drawRootRing(canvas, x, y, noteRadius)
                 }
             }
@@ -1122,11 +1146,15 @@ class FretboardView @JvmOverloads constructor(
             val played = playedFret == 0 && playedString == stringIndex
             val openPitchClass = Pitch.pitchClass(strings[stringIndex].openMidi)
             val activeOpen = config.mode == ViewMode.IMPROV &&
+                config.improvShowChord &&
                 config.improvActive?.contains(openPitchClass) == true
             val nextOpen = config.mode == ViewMode.IMPROV &&
+                config.improvShowChord &&
                 !activeOpen && config.improvNext?.contains(openPitchClass) == true
 
             val degree = config.scale.degreeOf(config.rootPc, openPitchClass)
+            val improvScaleOpen = config.mode == ViewMode.IMPROV &&
+                config.improvOverlayScale && config.improvShowScale && degree > 0
             val selected = if (config.mode == ViewMode.CHORD) config.chordPattern else config.selectedPattern
             val patternIncludesOpen = selected == null || CagedPatterns.includesOpenString(selected)
             val showScaleTone = config.mode == ViewMode.SCALE && degree > 0 && patternIncludesOpen
@@ -1147,6 +1175,8 @@ class FretboardView @JvmOverloads constructor(
                 chordVoicingRole != null && config.colorsEnabled ->
                     NoteColorProvider.chordRoleColor(chordVoicingRole)
                 chordVoicingRole != null -> NoteColorProvider.NEUTRAL_FILL
+                improvScaleOpen && config.colorsEnabled -> NoteColorProvider.scaleDegreeColor(degree)
+                improvScaleOpen -> NoteColorProvider.NEUTRAL_FILL
                 showScaleTone && config.colorsEnabled -> NoteColorProvider.scaleDegreeColor(degree)
                 showScaleTone -> NoteColorProvider.NEUTRAL_FILL
                 else -> 0xFF1B1825.toInt()
@@ -1160,6 +1190,7 @@ class FretboardView @JvmOverloads constructor(
                 activeOpen -> NoteColorProvider.textColorFor(fill)
                 nextOpen -> NoteColorProvider.NEUTRAL_TEXT_LIGHT
                 chordVoicingRole != null -> NoteColorProvider.textColorFor(fill)
+                improvScaleOpen -> NoteColorProvider.textColorFor(fill)
                 showScaleTone -> NoteColorProvider.textColorFor(fill)
                 else -> 0xFFB9B3C9.toInt()
             }
@@ -1182,6 +1213,8 @@ class FretboardView @JvmOverloads constructor(
                         improvRolePaint
                     )
                 }
+            } else if (improvScaleOpen && config.showDegrees) {
+                drawScaleDegreeBadge(canvas, cx, y, noteRadius * 0.9f, config, degree)
             }
 
             if (config.mode == ViewMode.CHORD && chordFormation.isNotEmpty()) {
@@ -1209,7 +1242,7 @@ class FretboardView @JvmOverloads constructor(
             }
             if (openPitchClass == config.rootPc &&
                 config.mode != ViewMode.CHORD &&
-                config.mode != ViewMode.IMPROV
+                (config.mode != ViewMode.IMPROV || improvScaleOpen)
             ) {
                 drawRootRing(canvas, cx, y, noteRadius * 0.9f)
             }

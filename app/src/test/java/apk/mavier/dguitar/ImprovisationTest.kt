@@ -57,4 +57,41 @@ class ImprovisationTest {
         assertEquals("5", chord.roleLabel(7))
         assertEquals("7", chord.roleLabel(10))
     }
+
+    @Test
+    fun barsRespectBarsPerChord() {
+        val sections = listOf(
+            ImprovSection(
+                "A",
+                listOf(
+                    ImprovChord(0, Chords.MAJOR, barsPerChord = 2),
+                    ImprovChord(7, Chords.MAJOR, barsPerChord = 1),
+                    ImprovChord(9, Chords.MINOR, barsPerChord = 4)
+                )
+            )
+        )
+
+        val bars = Improvisation.bars(sections)
+        assertEquals(7, bars.size)
+        assertEquals(listOf(0, 1, 2, 3, 4, 5, 6), bars.map { it.globalIndex })
+        assertEquals(listOf(0, 1, 0, 0, 1, 2, 3), bars.map { it.barInChord })
+        assertEquals(listOf(0, 0, 1, 2, 2, 2, 2), bars.map { it.stepIndex })
+        assertEquals(listOf(1, 2, 3, 4, 5, 6, 7), bars.map { it.globalBar })
+        assertEquals(7, Improvisation.totalBars(sections))
+        assertEquals(9, Improvisation.barAt(sections, 3)?.step?.chord?.rootPc)
+    }
+
+    @Test
+    fun barsPerChordNormalizesInvalidValues() {
+        assertEquals(1, ImprovChord(0, Chords.MAJOR, barsPerChord = 0).normalizedBarsPerChord)
+        assertEquals(1, ImprovChord(0, Chords.MAJOR, barsPerChord = 3).normalizedBarsPerChord)
+        assertEquals(4, ImprovChord(0, Chords.MAJOR, barsPerChord = 4).normalizedBarsPerChord)
+    }
+
+    @Test
+    fun emptySectionsHaveNoBars() {
+        assertTrue(Improvisation.bars(emptyList()).isEmpty())
+        assertEquals(0, Improvisation.totalBars(emptyList()))
+        assertEquals(null, Improvisation.barAt(emptyList(), 0))
+    }
 }
