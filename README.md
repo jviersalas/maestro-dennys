@@ -78,7 +78,9 @@
 
 Las escalas se dibujan sobre el mástil con la tónica, los grados (1, b3, 5…)
 y la fórmula de intervalos. Puedes escuchar la escala completa en secuencia,
-subiendo y bajando, y ver las posiciones del patrón CAGED.
+subiendo y bajando, y ver las posiciones del patrón CAGED. Al abrir por primera
+vez se parte de la **pentatónica menor**; puedes cambiar de escala, tónica,
+patrón, colores y grados desde la barra superior.
 
 Algunas escalas base:
 
@@ -199,6 +201,29 @@ Un laboratorio para crear progresiones por secciones y practicar sobre ellas:
 
 ---
 
+## Calidad y pruebas
+
+El proyecto incluye tests JVM para la lógica que no depende de Android:
+
+- teoría musical, escalas, acordes y grados,
+- posiciones, secuencias y patrones CAGED,
+- círculo armónico y codecs de preferencias,
+- improvisación, línea de tiempo, playback y reproductor de secuencias,
+- geometría del mástil, voicings y detección de cejillas,
+- analizador de tono (YIN), afinador y resolución de cuerda.
+
+Comandos útiles:
+
+```bash
+./gradlew testDebugUnitTest   # tests unitarios
+./gradlew lintDebug           # análisis estático
+./gradlew assembleDebug       # APK de desarrollo
+./gradlew assembleRelease     # APK release con R8
+```
+
+El flujo de **GitHub Actions** (`.github/workflows/android.yml`) ejecuta tests,
+lint y build en cada push a `develop`/`main` y en cada pull request.
+
 ## Cómo ejecutar
 
 Requisitos: **Android Studio** reciente, **JDK 17 o superior** y Android SDK
@@ -220,8 +245,20 @@ Compilar por consola:
 
 El APK se genera como `maestro-dennys-debug.apk`.
 
+Para una build de distribución:
+
+```bash
+./gradlew assembleRelease
+```
+
+El APK release se genera como `maestro-dennys.apk`, con **R8** y reducción de
+recursos activos (~1.9 MB). El `debug` no se minifica y pesa más (~9 MB); es
+normal.
+
 > El archivo `keystore.properties` y los `.jks` **no** se versionan. La firma de
-> release se configura localmente.
+> release se configura localmente. Si publicas el APK, guarda
+> `app/build/outputs/mapping/release/mapping.txt` para desofuscar futuros
+> reportes de fallos.
 
 ---
 
@@ -229,21 +266,27 @@ El APK se genera como `maestro-dennys-debug.apk`.
 
 ```
 app/src/main/java/apk/mavier/dguitar/
-├── core/audio/          Síntesis y análisis de audio
+├── core/audio/          Síntesis (Karplus–Strong) y análisis de tono (YIN)
 ├── domain/
-│   ├── model/           Música, escalas, acordes, CAGED, armonización
+│   ├── model/           Música, escalas, acordes, CAGED, armonización,
+│   │                    voicings, timeline, afinador
 │   ├── repository/      Contratos de datos
 │   └── usecase/         Casos de uso (círculo armónico, improvisación)
 ├── data/
-│   ├── preferences/     Claves de preferencias
+│   ├── preferences/     Claves y codecs de preferencias
 │   └── repository/      Implementación con SharedPreferences
 └── presentation/
-    ├── main/            Mástil, escalas, acordes y círculo armónico
-    ├── improvisation/   Progresiones y reproducción
+    ├── common/          Scheduler, reproductor de notas, menús y etiquetas
+    ├── main/            Mástil, escalas, acordes y diálogo del círculo armónico
+    ├── improvisation/   Progresiones, ViewModel, playback y arpegio
     ├── tuner/           Afinador
-    ├── onboarding/      Selección de instrumento
-    └── ui/              Vistas del mástil y del afinador
+    ├── onboarding/      Splash y selección de instrumento
+    └── ui/              Vistas del mástil, geometría y modelo de render
 ```
+
+Los tests JVM viven en `app/src/test/java/apk/mavier/dguitar/` y cubren dominio,
+audio, geometría, playback y codecs. El flujo de CI está en
+`.github/workflows/android.yml`.
 
 ---
 
