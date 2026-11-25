@@ -1,2 +1,226 @@
-# maestro-dennys
-Esta es un app conmorativa al Mestro de Guitarra Dennys Ruiz de venezuela
+<p align="center">
+  <img src="app/src/main/res/drawable-nodpi/logo_dennys.png" alt="DGuitar · Maestro Dennys" width="120" />
+</p>
+
+<h1 align="center">DGuitar · Maestro Dennys</h1>
+
+<p align="center">
+  <strong>Aprende guitarra y bajo viendo el mástil, no solo leyéndolo.</strong><br/>
+  Escalas, acordes, armonización e improvisación en una sola app.
+</p>
+
+<p align="center">
+  <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-7F52FF?logo=kotlin&logoColor=white" />
+  <img alt="Android" src="https://img.shields.io/badge/Android-API%2026%2B-3DDC84?logo=android&logoColor=white" />
+  <img alt="Material" src="https://img.shields.io/badge/Material%203-757575?logo=materialdesign&logoColor=white" />
+  <img alt="Estado" src="https://img.shields.io/badge/estado-en%20desarrollo-orange" />
+</p>
+
+---
+
+> **DGuitar** es una app didáctica de guitarra y bajo creada como homenaje al
+> maestro **Dennys Ruiz**, guitarrista de **Mariara, Venezuela**. Muestra en el
+> mástil lo que suena, explica el *por qué* de cada nota y convierte la teoría
+> musical en algo que se ve, se escucha y se toca.
+
+## Ficha rápida
+
+| | |
+|---|---|
+| **Plataforma** | Android nativo (Kotlin) |
+| **Compatibilidad** | Android 8.0 en adelante (API 26+) |
+| **Instrumentos** | Guitarra 6 cuerdas · Bajo 4 y 5 cuerdas |
+| **Afinaciones** | Estándar, Drop D, medio tono abajo, DADGAD, Open G, Open E |
+| **Escalas** | 51 escalas y modos |
+| **Acordes** | 24 tipos de acorde |
+| **Idioma** | Español |
+
+## Contenido
+
+1. [Escalas](#escalas)
+2. [Acordes](#acordes)
+3. [Armonización](#armonización)
+4. [Improvisación](#improvisación)
+5. [Otras herramientas](#otras-herramientas)
+6. [Cómo ejecutar](#cómo-ejecutar)
+7. [Estructura del proyecto](#estructura-del-proyecto)
+8. [Sobre Dennys Ruiz](#sobre-dennys-ruiz)
+
+---
+
+## Escalas
+
+Las escalas se dibujan sobre el mástil con la tónica, los grados (1, b3, 5…)
+y la fórmula de intervalos. Puedes escuchar la escala completa en secuencia,
+subiendo y bajando, y ver las posiciones del patrón CAGED.
+
+Algunas escalas base:
+
+| Escala | Fórmula | Uso típico |
+|---|---|---|
+| Mayor (Jónica) | 1–2–3–4–5–6–7 | Base tonal, melodía y armonía |
+| Menor natural (Eólica) | 1–2–b3–4–5–b6–b7 | Rock, pop y baladas |
+| Menor armónica | 1–2–b3–4–5–b6–7 | Sonido clásico y oriental |
+| Menor melódica | 1–2–b3–4–5–6–7 | Jazz y fusión |
+| Pentatónica menor | 1–b3–4–5–b7 | Solos de rock y blues |
+| Blues menor | 1–b3–4–b5–5–b7 | Fraseo de blues |
+| Dórico | 1–2–b3–4–5–6–b7 | Funk, jazz y rock modal |
+| Mixolidio | 1–2–3–4–5–6–b7 | Dominantes y blues |
+| Frigio dominante | 1–b2–3–4–5–b6–b7 | Flamenco y metal |
+
+<details>
+<summary><strong>Ver el catálogo completo (51 escalas y modos)</strong></summary>
+
+- **Pentatónicas y blues:** pentatónica menor, mayor, menor 6, menor 9,
+  dominante y frigia; blues menor, blues mayor, blues mayor b3; voodoo.
+- **Mayores y menores:** mayor (jónica), menor natural (eólica), menor
+  armónica, menor melódica, mayor armónica, menor melódica b6.
+- **Modos griegos:** jónico, dórico, frigio, lidio, mixolidio, eólico, locrio.
+- **Bebop y simétricas:** bebop dominante, mayor y menor; cromática; tonos
+  enteros; disminuida (semitono-tono); disminuida (tono-semitono); aumentada
+  mayor.
+- **Alteradas y dominantes:** alterada (superlocria), lidio dominante,
+  mixolidia b6.
+- **Modales derivadas:** jónica #5, dórica b2, lidio #2, locria #2,
+  locrio natural 6, menor melódica b5.
+- **Éxoticas y étnicas:** frigia dominante (española), doble armónica
+  (bizantina), húngara (gitana), napolitana menor, oriental, persa,
+  rumana (menor húngara), pelog, hindú, enigmática, gitana menor.
+
+</details>
+
+---
+
+## Acordes
+
+Se dibujan las notas del acorde, su formación y sus grados. En guitarra puedes
+**puntear** el acorde nota por nota y explorar las posiciones del sistema CAGED.
+
+| Familia | Acordes incluidos |
+|---|---|
+| **Tríadas** | Mayor, Menor, 5 (power), Disminuido, Aumentado, Sus2, Sus4 |
+| **Séptimas** | 7, Maj7, m7, dim7, m7b5, mMaj7, 7#5, maj7#5, dimMaj7, 7sus2, 7sus4 |
+| **Extensiones** | 6, m6, add9, 9, m9, Maj9 |
+
+Cada acorde muestra su **cifrado** (C, Am, G7…), su **nombre completo** y sus
+**notas reales** coloreadas por función armónica.
+
+---
+
+## Armonización
+
+El **círculo armónico** construye automáticamente los acordes de una escala de
+7 notas, en tríadas o en séptimas, grado por grado (I, ii, iii, IV, V, vi, vii°).
+
+Ejemplo en **Do mayor**:
+
+| Grado | Tríada | Séptima | Función |
+|:---:|:---:|:---:|---|
+| I | C | Cmaj7 | Tónica |
+| ii | Dm | Dm7 | Subdominante / preparación |
+| iii | Em | Em7 | Tónica relativa |
+| IV | F | Fmaj7 | Subdominante |
+| V | G | G7 | Dominante |
+| vi | Am | Am7 | Tónica relativa |
+| vii° | Bdim | Bm7b5 | Dominante / sensible |
+
+En la app puedes:
+
+- Elegir qué grados del círculo suenan.
+- Alternar entre **tríadas** y **séptimas**.
+- Cambiar la calidad de cada grado (diatónica, mayor o menor) manteniendo
+  pulsado sobre el acorde.
+- Ver las notas del acorde armónico y seguirlo en el mástil.
+
+---
+
+## Improvisación
+
+Un laboratorio para crear progresiones por secciones y practicar sobre ellas:
+
+- **Secciones y acordes** propios (tónica + calidad).
+- **Tempo ajustable** entre **40 y 220 BPM**.
+- Por cada acorde:
+  - **Nota principal:** toca solo la nota más grave (la raíz del acorde).
+  - **Arreglo:** toca las notas del acorde en arpegio (por defecto).
+  - **Toques por compás:** **8, 4, 2 o 1**, repartidos dentro del compás.
+- El mástil resalta el acorde actual y el siguiente mientras suena la progresión.
+
+---
+
+## Otras herramientas
+
+- **Afinador** cromático con detección de tono en tiempo real.
+- **Modo libre** para explorar el mástil sin colores ni filtros.
+- **Audio sintetizado** de cuerda pulsada para escuchar cada nota.
+- **Colores por grado** para reconocer la función de cada nota de un vistazo.
+
+---
+
+## Cómo ejecutar
+
+Requisitos: **Android Studio** reciente, **JDK 17 o superior** y Android SDK
+(compilación con API 37).
+
+```bash
+git clone git@github.com:jviersalas/maestro-dennys.git
+```
+
+1. Abre la carpeta del proyecto en Android Studio.
+2. Espera la sincronización de Gradle.
+3. Ejecuta en un emulador o dispositivo con **Android 8.0+**.
+
+Compilar por consola:
+
+```bash
+./gradlew assembleDebug
+```
+
+El APK se genera como `maestro-dennys-debug.apk`.
+
+> El archivo `keystore.properties` y los `.jks` **no** se versionan. La firma de
+> release se configura localmente.
+
+---
+
+## Estructura del proyecto
+
+```
+app/src/main/java/apk/mavier/dguitar/
+├── core/audio/          Síntesis y análisis de audio
+├── domain/
+│   ├── model/           Música, escalas, acordes, CAGED, armonización
+│   ├── repository/      Contratos de datos
+│   └── usecase/         Casos de uso (círculo armónico, improvisación)
+├── data/
+│   ├── preferences/     Claves de preferencias
+│   └── repository/      Implementación con SharedPreferences
+└── presentation/
+    ├── main/            Mástil, escalas, acordes y círculo armónico
+    ├── improvisation/   Progresiones y reproducción
+    ├── tuner/           Afinador
+    ├── onboarding/      Selección de instrumento
+    └── ui/              Vistas del mástil y del afinador
+```
+
+---
+
+## Sobre Dennys Ruiz
+
+> **Dennys Ruiz** es guitarrista y maestro de música de **Mariara, estado
+> Carabobo, Venezuela**. Ha dedicado su vida a enseñar guitarra combinando
+> técnica, oído y armonía aplicada, formando a músicos de la región con un
+> método cercano: primero se escucha, después se entiende, y por último se
+> domina el mástil.
+>
+> Esta app nace como homenaje a su labor y a su manera de compartir la música.
+
+<!-- Bio editable: añade aquí años de trayectoria, agrupaciones, grabaciones,
+     reconocimientos o anécdotas que quieras destacar. -->
+
+---
+
+<p align="center">
+  Hecho con respeto y cariño para la música de Mariara, Venezuela.<br/>
+  <sub>Proyecto conmemorativo · DGuitar</sub>
+</p>
