@@ -20,8 +20,8 @@ import apk.mavier.dguitar.core.audio.PitchDetector
 import apk.mavier.dguitar.databinding.ActivityTunerBinding
 import apk.mavier.dguitar.domain.model.Pitch
 import apk.mavier.dguitar.domain.model.TunerMath
+import apk.mavier.dguitar.domain.model.TunerTargetResolver
 import apk.mavier.dguitar.domain.model.Tunings
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class TunerActivity : AppCompatActivity() {
@@ -281,31 +281,13 @@ class TunerActivity : AppCompatActivity() {
         updateStringButtons()
     }
 
-    private fun resolveTarget(frequency: Double): Int? {
-        selectedStringIndex?.let { return it }
-
-        var bestIndex = -1
-        var bestDistance = Double.MAX_VALUE
-        for (index in tuning.strings.indices) {
-            val target = Pitch.frequency(tuning.strings[index].openMidi)
-            val distance = abs(TunerMath.centsBetween(frequency, target))
-            if (distance < bestDistance) {
-                bestDistance = distance
-                bestIndex = index
-            }
-        }
-        if (bestIndex < 0) return null
-
-        val previous = autoStringIndex
-        if (previous != null && previous != bestIndex) {
-            val previousTarget = Pitch.frequency(tuning.strings[previous].openMidi)
-            val previousDistance = abs(TunerMath.centsBetween(frequency, previousTarget))
-            if (previousDistance < bestDistance + 20.0) {
-                return previous
-            }
-        }
-        return bestIndex
-    }
+    private fun resolveTarget(frequency: Double): Int? =
+        TunerTargetResolver.resolve(
+            frequency = frequency,
+            tuning = tuning,
+            selectedStringIndex = selectedStringIndex,
+            previousAutoIndex = autoStringIndex
+        )
 
     private fun handleNoSignal() {
         lastValidReadingAt = 0L
