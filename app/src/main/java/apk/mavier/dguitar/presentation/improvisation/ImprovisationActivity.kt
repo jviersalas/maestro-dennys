@@ -7,7 +7,6 @@ import android.media.ToneGenerator
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.SystemClock
 import android.text.InputType
 import android.text.SpannableStringBuilder
 import android.text.Spanned
@@ -86,12 +85,10 @@ class ImprovisationActivity : AppCompatActivity() {
     private var scaleRootPc = 0
     private var scaleRootAuto = true
     private var scale: ScaleMode = Scales.PENTATONIC_MINOR
-    private var barStartedAt = 0L
     private var timelineCache: ImprovTimeline? = null
+    private lateinit var playbackController: ImprovPlaybackController
 
     private val handler = Handler(Looper.getMainLooper())
-    private var playbackRunnable: Runnable? = null
-    private var progressRunnable: Runnable? = null
     private var metronomeRunnable: Runnable? = null
     private var beatIndex = 0
     private var toneGenerator: ToneGenerator? = null
@@ -171,6 +168,27 @@ class ImprovisationActivity : AppCompatActivity() {
             ToneGenerator(AudioManager.STREAM_MUSIC, METRONOME_VOLUME)
         }.getOrNull()
 
+        playbackController = ImprovPlaybackController(HandlerImprovScheduler(handler))
+        playbackController.listener = object : ImprovPlaybackController.Listener {
+            override fun onBarChanged(barIndex: Int) {
+                val bar = bars().getOrNull(barIndex) ?: return
+                activeBar = barIndex
+                activeStep = bar.stepIndex
+                selectedSection = bar.step.sectionIndex
+                renderAll()
+                beginBar()
+            }
+
+            override fun onProgress(progress: Int) {
+                binding.barProgress.progress = progress
+            }
+
+            override fun onFinished() {
+                playing = false
+                returnToStart()
+            }
+        }
+
         binding.backButton.setOnClickListener { finish() }
         binding.playButton.setOnClickListener { togglePlayback() }
         binding.tempoButton.setOnClickListener { showTempoDialog() }
@@ -205,6 +223,7 @@ class ImprovisationActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        if (::playbackController.isInitialized) playbackController.stop()
         progressionDialog?.dismiss()
         progressionDialog = null
         progressionDialogBinding = null
@@ -261,7 +280,12 @@ class ImprovisationActivity : AppCompatActivity() {
             bar != null -> "Compás ${bar.globalBar} / ${bars.size}"
             else -> "Sin compás activo"
         }
-        binding.barProgress.progress = if (playing && bar != null) currentBarProgress() else 0
+        binding.barProgress.progress =
+            if (playing && bar != null && ::playbackController.isInitialized) {
+                playbackController.progress
+            } else {
+                0
+            }
     }
 
     private fun renderGuitarControls() {
@@ -1020,20 +1044,11 @@ class ImprovisationActivity : AppCompatActivity() {
             return
         }
         playing = true
-        if (activeBar !in bars.indices) {
-            setActiveStep(0)
-        } else {
-            activeStep = bars[activeBar].stepIndex
-            selectedSection = bars[activeBar].step.sectionIndex
-        }
-        barStartedAt = SystemClock.elapsedRealtime()
-        renderAll()
-        beginBar()
+        val startBar = if (activeBar in bars.indices) activeBar else 0
+        playbackController.start(bars, startBar, bpm)
     }
 
     private fun beginBar() {
-        barStartedAt = SystemClock.elapsedRealtime()
-        startProgressTicker()
         startMetronomeForBar()
         val bar = bars().getOrNull(activeBar)
         if (bar != null) {
@@ -1043,59 +1058,11 @@ class ImprovisationActivity : AppCompatActivity() {
                 playArpeggio()
             }
         }
-        scheduleBarAdvance()
-    }
-
-    private fun scheduleBarAdvance() {
-        playbackRunnable?.let { handler.removeCallbacks(it) }
-        val runnable = object : Runnable {
-            override fun run() {
-                if (!playing) return
-                val bars = bars()
-                val next = activeBar + 1
-                if (next >= bars.size) {
-                    stopPlayback()
-                    returnToStart()
-                    return
-                }
-                activeBar = next
-                activeStep = bars[next].stepIndex
-                selectedSection = bars[next].step.sectionIndex
-                barStartedAt = SystemClock.elapsedRealtime()
-                renderAll()
-                beginBar()
-            }
-        }
-        playbackRunnable = runnable
-        handler.postDelayed(runnable, barDurationMs())
-    }
-
-    private fun startProgressTicker() {
-        progressRunnable?.let { handler.removeCallbacks(it) }
-        val runnable = object : Runnable {
-            override fun run() {
-                if (!playing) return
-                binding.barProgress.progress = currentBarProgress()
-                handler.postDelayed(this, PROGRESS_TICK_MS)
-            }
-        }
-        progressRunnable = runnable
-        handler.post(runnable)
-    }
-
-    private fun currentBarProgress(): Int {
-        if (!playing) return 0
-        val elapsed = SystemClock.elapsedRealtime() - barStartedAt
-        val fraction = elapsed.toFloat() / barDurationMs().toFloat()
-        return (fraction.coerceIn(0f, 1f) * PROGRESS_MAX).toInt()
     }
 
     private fun stopPlayback() {
         playing = false
-        playbackRunnable?.let { handler.removeCallbacks(it) }
-        playbackRunnable = null
-        progressRunnable?.let { handler.removeCallbacks(it) }
-        progressRunnable = null
+        playbackController.stop()
         stopMetronome()
         arpeggioRunnable?.let { arpeggioHandler.removeCallbacks(it) }
         arpeggioRunnable = null
@@ -1279,7 +1246,6 @@ class ImprovisationActivity : AppCompatActivity() {
         const val BEATS_PER_BAR = 4L
         const val MIN_NOTE_GAP_MS = 30L
         const val PROGRESS_MAX = 1000
-        const val PROGRESS_TICK_MS = 50L
         const val METRONOME_VOLUME = 70
         const val METRONOME_TICK_MS = 45
     }

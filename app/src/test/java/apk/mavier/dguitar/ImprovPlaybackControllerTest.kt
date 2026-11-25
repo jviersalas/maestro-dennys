@@ -1,0 +1,146 @@
+package apk.mavier.dguitar
+
+import apk.mavier.dguitar.domain.model.Chords
+import apk.mavier.dguitar.domain.model.ImprovBar
+import apk.mavier.dguitar.domain.model.ImprovChord
+import apk.mavier.dguitar.domain.model.ImprovSection
+import apk.mavier.dguitar.domain.model.Improvisation
+import apk.mavier.dguitar.presentation.improvisation.ImprovPlaybackController
+import apk.mavier.dguitar.presentation.improvisation.ImprovScheduler
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class ImprovPlaybackControllerTest {
+
+    private class FakeScheduler : ImprovScheduler {
+
+        private data class Task(val time: Long, val id: Long, val action: () -> Unit)
+
+        private val tasks = mutableListOf<Task>()
+        private val cancelled = mutableSetOf<Long>()
+        private var nextId = 0L
+        private var now = 0L
+
+        override fun postDelayed(delayMs: Long, action: () -> Unit): ImprovScheduler.Cancellable {
+            val id = nextId++
+            tasks.add(Task(now + delayMs, id, action))
+            return object : ImprovScheduler.Cancellable {
+                override fun cancel() {
+                    cancelled.add(id)
+                }
+            }
+        }
+
+        fun advanceBy(deltaMs: Long) {
+            val target = now + deltaMs
+            while (true) {
+                val next = tasks
+                    .asSequence()
+                    .filter { it.id !in cancelled && it.time <= target }
+                    .minByOrNull { it.time } ?: break
+                tasks.remove(next)
+                now = next.time
+                next.action()
+            }
+            now = target
+        }
+    }
+
+    private class Recorder : ImprovPlaybackController.Listener {
+        val bars = mutableListOf<Int>()
+        val progress = mutableListOf<Int>()
+        var finished = false
+
+        override fun onBarChanged(barIndex: Int) {
+            bars.add(barIndex)
+        }
+
+        override fun onProgress(progress: Int) {
+            this.progress.add(progress)
+        }
+
+        override fun onFinished() {
+            finished = true
+        }
+    }
+
+    private fun bars(count: Int = 2): List<ImprovBar> {
+        val chords = (0 until count).map { ImprovChord(it, Chords.MAJOR) }
+        return Improvisation.bars(listOf(ImprovSection("A", chords)))
+    }
+
+    @Test
+    fun startsOnTheRequestedBar() {
+        val scheduler = FakeScheduler()
+        val controller = ImprovPlaybackController(scheduler)
+        val recorder = Recorder()
+        controller.listener = recorder
+
+        controller.start(bars(), startBar = 0, bpm = 120)
+
+        assertEquals(listOf(0), recorder.bars)
+        assertTrue(controller.isRunning)
+    }
+
+    @Test
+    fun advancesOneBarEveryTwoSecondsAt120Bpm() {
+        val scheduler = FakeScheduler()
+        val controller = ImprovPlaybackController(scheduler)
+        val recorder = Recorder()
+        controller.listener = recorder
+        controller.start(bars(), startBar = 0, bpm = 120)
+
+        scheduler.advanceBy(1_999)
+        assertEquals(listOf(0), recorder.bars)
+
+        scheduler.advanceBy(1)
+        assertEquals(listOf(0, 1), recorder.bars)
+    }
+
+    @Test
+    fun reportsProgressAcrossTheBar() {
+        val scheduler = FakeScheduler()
+        val controller = ImprovPlaybackController(scheduler)
+        val recorder = Recorder()
+        controller.listener = recorder
+        controller.start(bars(), startBar = 0, bpm = 120)
+
+        scheduler.advanceBy(1_000)
+        assertEquals(500, recorder.progress.last())
+        assertEquals(500, controller.progress)
+    }
+
+    @Test
+    fun finishesAfterTheLastBar() {
+        val scheduler = FakeScheduler()
+        val controller = ImprovPlaybackController(scheduler)
+        val recorder = Recorder()
+        controller.listener = recorder
+        controller.start(bars(), startBar = 0, bpm = 120)
+
+        scheduler.advanceBy(4_000)
+
+        assertTrue(recorder.finished)
+        assertFalse(controller.isRunning)
+        assertEquals(0, controller.progress)
+    }
+
+    @Test
+    fun stopCancelsPendingWork() {
+        val scheduler = FakeScheduler()
+        val controller = ImprovPlaybackController(scheduler)
+        val recorder = Recorder()
+        controller.listener = recorder
+        controller.start(bars(), startBar = 0, bpm = 120)
+
+        scheduler.advanceBy(500)
+        controller.stop()
+        scheduler.advanceBy(10_000)
+
+        assertEquals(listOf(0), recorder.bars)
+        assertFalse(recorder.finished)
+        assertFalse(controller.isRunning)
+    }
+}
