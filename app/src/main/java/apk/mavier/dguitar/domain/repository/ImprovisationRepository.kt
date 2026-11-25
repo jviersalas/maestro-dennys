@@ -1,11 +1,13 @@
 package apk.mavier.dguitar.domain.repository
 
 import apk.mavier.dguitar.domain.model.ImprovInstrument
-import apk.mavier.dguitar.domain.model.ImprovSection
+import apk.mavier.dguitar.domain.model.ImprovProgression
 
 interface ImprovisationRepository {
-    fun loadSections(instrument: ImprovInstrument): List<ImprovSection>
-    fun saveSections(instrument: ImprovInstrument, sections: List<ImprovSection>)
+    fun loadProgressions(instrument: ImprovInstrument): List<ImprovProgression>
+    fun saveProgressions(instrument: ImprovInstrument, progressions: List<ImprovProgression>)
+    fun loadSelectedProgressionId(instrument: ImprovInstrument): String?
+    fun saveSelectedProgressionId(instrument: ImprovInstrument, id: String)
     fun loadBpm(instrument: ImprovInstrument): Int
     fun saveBpm(instrument: ImprovInstrument, bpm: Int)
     fun loadShowDegrees(): Boolean

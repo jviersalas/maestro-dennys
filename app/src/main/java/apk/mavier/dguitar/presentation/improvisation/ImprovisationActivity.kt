@@ -29,12 +29,15 @@ import apk.mavier.dguitar.domain.di.DependencyProvider
 import apk.mavier.dguitar.core.audio.GuitarSynth
 import apk.mavier.dguitar.databinding.ActivityImprovisationBinding
 import apk.mavier.dguitar.databinding.DialogImprovChordBinding
+import apk.mavier.dguitar.databinding.DialogImprovLibraryBinding
 import apk.mavier.dguitar.databinding.DialogImprovisationProgressionBinding
+import apk.mavier.dguitar.databinding.ItemImprovProgressionBinding
 import apk.mavier.dguitar.domain.model.Chords
 import apk.mavier.dguitar.domain.model.FretboardConfig
 import apk.mavier.dguitar.domain.model.ImprovBar
 import apk.mavier.dguitar.domain.model.ImprovChord
 import apk.mavier.dguitar.domain.model.ImprovInstrument
+import apk.mavier.dguitar.domain.model.ImprovProgression
 import apk.mavier.dguitar.domain.model.ImprovSection
 import apk.mavier.dguitar.domain.model.ImprovStep
 import apk.mavier.dguitar.domain.model.Improvisation
@@ -50,6 +53,7 @@ import apk.mavier.dguitar.domain.usecase.GetImprovisationStepsUseCase
 import apk.mavier.dguitar.presentation.theme.ChordColorProvider
 import apk.mavier.dguitar.presentation.ui.FretboardView
 import apk.mavier.dguitar.presentation.ui.applySystemBarInsets
+import java.util.UUID
 
 class ImprovisationActivity : AppCompatActivity() {
 
@@ -63,6 +67,8 @@ class ImprovisationActivity : AppCompatActivity() {
     private var instrument = ImprovInstrument.BASS
     private var isGuitar = false
     private var useFlats = true
+    private var progressions = mutableListOf<ImprovProgression>()
+    private var currentProgressionId = ""
     private var sections = mutableListOf<ImprovSection>()
     private var selectedSection = 0
     private var activeStep = -1
@@ -89,6 +95,8 @@ class ImprovisationActivity : AppCompatActivity() {
     private var arpeggioRunnable: Runnable? = null
     private var progressionDialog: AlertDialog? = null
     private var progressionDialogBinding: DialogImprovisationProgressionBinding? = null
+    private var libraryDialog: AlertDialog? = null
+    private var libraryDialogBinding: DialogImprovLibraryBinding? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -116,8 +124,24 @@ class ImprovisationActivity : AppCompatActivity() {
         scale = Scales.all.getOrElse(improvisationRepository.loadScaleIndex()) {
             Scales.PENTATONIC_MINOR
         }
-        sections = improvisationRepository.loadSections(instrument).toMutableList()
+        progressions = improvisationRepository.loadProgressions(instrument).toMutableList()
+        if (progressions.isEmpty()) {
+            progressions.add(
+                ImprovProgression(
+                    id = UUID.randomUUID().toString(),
+                    name = "Improvisación 1",
+                    sections = listOf(ImprovSection("Intro"))
+                )
+            )
+        }
+        val storedProgressionId = improvisationRepository.loadSelectedProgressionId(instrument)
+        val currentProgression = progressions.firstOrNull { it.id == storedProgressionId }
+            ?: progressions.first()
+        currentProgressionId = currentProgression.id
+        sections = currentProgression.sections.toMutableList()
         if (sections.isEmpty()) sections.add(ImprovSection("Intro"))
+        updateCurrentProgression()
+        persistProgressions()
         val storedRoot = improvisationRepository.loadScaleRoot()
         scaleRootAuto = storedRoot !in 0..11
         scaleRootPc = if (scaleRootAuto) firstChordRoot() else storedRoot
@@ -140,6 +164,7 @@ class ImprovisationActivity : AppCompatActivity() {
         binding.backButton.setOnClickListener { finish() }
         binding.playButton.setOnClickListener { togglePlayback() }
         binding.tempoButton.setOnClickListener { showTempoDialog() }
+        binding.libraryButton.setOnClickListener { showLibraryDialog() }
         binding.progressionButton.setOnClickListener { showProgressionDialog() }
         binding.degreesButton.setOnClickListener {
             showDegrees = !showDegrees
@@ -173,6 +198,9 @@ class ImprovisationActivity : AppCompatActivity() {
         progressionDialog?.dismiss()
         progressionDialog = null
         progressionDialogBinding = null
+        libraryDialog?.dismiss()
+        libraryDialog = null
+        libraryDialogBinding = null
         stopMetronome()
         toneGenerator?.release()
         toneGenerator = null
@@ -195,6 +223,8 @@ class ImprovisationActivity : AppCompatActivity() {
         binding.improvSubtitle.text = buildString {
             append(instrumentLabel())
             append(" · ")
+            append(currentProgression()?.name ?: "Improvisación")
+            append(" · ")
             append(section?.name ?: "Sin sección")
             if (active != null) {
                 append(" · ")
@@ -204,14 +234,15 @@ class ImprovisationActivity : AppCompatActivity() {
         binding.degreesButton.isSelected = showDegrees
         binding.degreesButton.contentDescription =
             if (showDegrees) "Ocultar grados del acorde" else "Mostrar grados del acorde"
-        binding.tempoButton.text = "Tempo $bpm"
+        binding.tempoButton.text = bpm.toString()
         binding.tempoButton.contentDescription = "Cambiar tempo, $bpm BPM"
         binding.progressionButton.contentDescription =
-            "Editar progresión, ${sections.size} secciones"
+            "Editar ${currentProgression()?.name ?: "progresión"}, ${sections.size} secciones"
+        binding.libraryButton.contentDescription =
+            "Ver improvisaciones guardadas, ${progressions.size}"
         binding.metronomeButton.isSelected = metronomeEnabled
         binding.metronomeButton.contentDescription =
             if (metronomeEnabled) "Desactivar metrónomo" else "Activar metrónomo"
-        binding.playButton.text = if (playing) "Detener" else "Play"
         binding.playButton.isSelected = playing
         binding.playButton.contentDescription =
             if (playing) "Detener reproducción" else "Reproducir progresión"
@@ -268,6 +299,202 @@ class ImprovisationActivity : AppCompatActivity() {
         val dialogBinding = progressionDialogBinding ?: return
         renderSectionChips(dialogBinding.dialogSectionList)
         renderChordChips(dialogBinding.dialogChordList)
+    }
+
+    private fun currentProgression(): ImprovProgression? =
+        progressions.firstOrNull { it.id == currentProgressionId }
+
+    private fun updateCurrentProgression() {
+        val index = progressions.indexOfFirst { it.id == currentProgressionId }
+        if (index >= 0) {
+            progressions[index] = progressions[index].copy(sections = sections.toList())
+        }
+    }
+
+    private fun persistProgressions() {
+        improvisationRepository.saveProgressions(instrument, progressions)
+        improvisationRepository.saveSelectedProgressionId(instrument, currentProgressionId)
+    }
+
+    private fun showLibraryDialog() {
+        stopPlayback()
+        if (libraryDialog?.isShowing == true) return
+        val dialogBinding = DialogImprovLibraryBinding.inflate(layoutInflater)
+        libraryDialogBinding = dialogBinding
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle("Improvisaciones")
+            .setView(dialogBinding.root)
+            .setNegativeButton("Cerrar", null)
+            .setOnDismissListener {
+                libraryDialogBinding = null
+                libraryDialog = null
+            }
+            .create()
+        libraryDialog = dialog
+        dialogBinding.newProgressionButton.setOnClickListener {
+            showNameDialog(
+                "Nueva improvisación",
+                "Improvisación ${progressions.size + 1}",
+                "Crear"
+            ) { name -> createProgression(name) }
+        }
+        dialog.show()
+        refreshLibraryDialog()
+    }
+
+    private fun refreshLibraryDialog() {
+        val dialogBinding = libraryDialogBinding ?: return
+        val count = progressions.size
+        dialogBinding.librarySubtitle.text = buildString {
+            append(instrumentLabel())
+            append(" · ")
+            append(count)
+            append(if (count == 1) " guardada" else " guardadas")
+        }
+
+        val list = dialogBinding.libraryList
+        list.removeAllViews()
+        for (progression in progressions) {
+            val row = ItemImprovProgressionBinding.inflate(
+                layoutInflater,
+                list,
+                false
+            )
+            val summary = progressionSummary(progression)
+            row.progressionName.text = progression.name
+            row.progressionSummary.text = summary
+            row.root.isSelected = progression.id == currentProgressionId
+            row.root.contentDescription = buildString {
+                append("Improvisación ")
+                append(progression.name)
+                append(", ")
+                append(summary)
+                if (progression.id == currentProgressionId) append(", seleccionada")
+            }
+            row.root.setOnClickListener { selectProgression(progression.id) }
+            row.root.setOnLongClickListener {
+                showLibraryItemMenu(row.root, progression)
+                true
+            }
+            list.addView(row.root)
+        }
+    }
+
+    private fun progressionSummary(progression: ImprovProgression): String {
+        val sectionCount = progression.sections.size
+        val chordCount = progression.sections.sumOf { it.chords.size }
+        val sectionsLabel = if (sectionCount == 1) "1 sección" else "$sectionCount secciones"
+        val chordsLabel = if (chordCount == 1) "1 acorde" else "$chordCount acordes"
+        return "$sectionsLabel · $chordsLabel"
+    }
+
+    private fun showLibraryItemMenu(anchor: View, progression: ImprovProgression) {
+        stopPlayback()
+        val popup = PopupMenu(this, anchor)
+        popup.menu.add(0, 0, 0, "Renombrar")
+        popup.menu.add(0, 1, 1, "Eliminar")
+        popup.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                0 -> showNameDialog(
+                    "Renombrar improvisación",
+                    progression.name,
+                    "Guardar"
+                ) { name -> renameProgression(progression.id, name) }
+                1 -> confirmDeleteProgression(progression)
+            }
+            true
+        }
+        popup.show()
+    }
+
+    private fun selectProgression(id: String) {
+        if (id == currentProgressionId) {
+            libraryDialog?.dismiss()
+            return
+        }
+        stopPlayback()
+        saveSections()
+        val next = progressions.firstOrNull { it.id == id } ?: return
+        currentProgressionId = next.id
+        sections = next.sections.toMutableList()
+        if (sections.isEmpty()) sections.add(ImprovSection("Intro"))
+        selectedSection = 0
+        setActiveStep(if (sections.first().chords.isNotEmpty()) 0 else -1)
+        saveSections()
+        libraryDialog?.dismiss()
+        renderAll()
+    }
+
+    private fun createProgression(name: String) {
+        stopPlayback()
+        saveSections()
+        val progression = ImprovProgression(
+            id = UUID.randomUUID().toString(),
+            name = name,
+            sections = listOf(ImprovSection("Intro"))
+        )
+        progressions.add(progression)
+        currentProgressionId = progression.id
+        sections = progression.sections.toMutableList()
+        selectedSection = 0
+        setActiveStep(-1)
+        saveSections()
+        renderAll()
+    }
+
+    private fun renameProgression(id: String, name: String) {
+        val index = progressions.indexOfFirst { it.id == id }
+        if (index < 0) return
+        progressions[index] = progressions[index].copy(name = name)
+        persistProgressions()
+        refreshLibraryDialog()
+        renderHeader()
+    }
+
+    private fun confirmDeleteProgression(progression: ImprovProgression) {
+        if (progressions.size <= 1) {
+            Toast.makeText(
+                this,
+                "Debe quedar al menos una improvisación",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Eliminar improvisación")
+            .setMessage("¿Eliminar “${progression.name}”?")
+            .setPositiveButton("Eliminar") { _, _ -> deleteProgression(progression.id) }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun deleteProgression(id: String) {
+        if (progressions.size <= 1) {
+            Toast.makeText(
+                this,
+                "Debe quedar al menos una improvisación",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+        val index = progressions.indexOfFirst { it.id == id }
+        if (index < 0) return
+        stopPlayback()
+        val wasCurrent = id == currentProgressionId
+        progressions.removeAt(index)
+        if (wasCurrent) {
+            val next = progressions.first()
+            currentProgressionId = next.id
+            sections = next.sections.toMutableList()
+            if (sections.isEmpty()) sections.add(ImprovSection("Intro"))
+            selectedSection = 0
+            setActiveStep(if (sections.first().chords.isNotEmpty()) 0 else -1)
+            saveSections()
+        } else {
+            persistProgressions()
+        }
+        refreshLibraryDialog()
+        renderAll()
     }
 
     private fun renderSectionChips(container: LinearLayout) {
@@ -1016,7 +1243,9 @@ class ImprovisationActivity : AppCompatActivity() {
 
     private fun saveSections() {
         syncScaleRootFromProgression()
-        improvisationRepository.saveSections(instrument, sections)
+        updateCurrentProgression()
+        persistProgressions()
+        refreshLibraryDialog()
     }
 
     private companion object {

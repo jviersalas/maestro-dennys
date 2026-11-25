@@ -17,55 +17,133 @@
         android:paddingEnd="16dp"
         android:paddingBottom="12dp">
 
-        <TextView
-            android:id="@+id/backButton"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="@drawable/bg_chip"
-            android:clickable="true"
-            android:contentDescription="Volver"
-            android:focusable="true"
-            android:gravity="center"
-            android:text="‹"
-            android:textColor="@color/text_primary"
-            android:textSize="28sp" />
-
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
             android:layout_weight="1"
-            android:orientation="vertical">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
             <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:fontFamily="sans-serif-medium"
-                android:maxLines="1"
-                android:text="Improvisación"
+                android:id="@+id/backButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_chip"
+                android:clickable="true"
+                android:contentDescription="Volver"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="‹"
                 android:textColor="@color/text_primary"
-                android:textSize="20sp" />
+                android:textSize="28sp" />
 
-            <TextView
-                android:id="@+id/improvSubtitle"
-                android:layout_width="match_parent"
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:text="Guitarra · Intro"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif-medium"
+                    android:maxLines="1"
+                    android:text="Improvisación"
+                    android:textColor="@color/text_primary"
+                    android:textSize="20sp" />
+
+                <TextView
+                    android:id="@+id/improvSubtitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Guitarra · Intro"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/playButton"
-            style="@style/ChipButton"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:id="@+id/headerControls"
+            android:layout_width="272dp"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:text="Play" />
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_control_bar"
+            android:elevation="2dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="4dp">
+
+            <TextView
+                android:id="@+id/tempoButton"
+                android:layout_width="52dp"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_icon_button"
+                android:clickable="true"
+                android:contentDescription="Cambiar tempo, 80 BPM"
+                android:drawablePadding="1dp"
+                android:drawableTint="@color/icon_tint"
+                android:drawableTop="@drawable/ic_tempo"
+                android:focusable="true"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:text="80"
+                android:textColor="@color/text_primary"
+                android:textSize="10sp" />
+
+            <ImageButton
+                android:id="@+id/metronomeButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/bg_icon_button"
+                android:contentDescription="Activar metrónomo"
+                android:padding="12dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_metronome"
+                app:tint="@color/icon_tint" />
+
+            <ImageButton
+                android:id="@+id/colorsButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/bg_icon_button"
+                android:contentDescription="Mostrar colores de la escala"
+                android:padding="12dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_color"
+                app:tint="@color/icon_tint" />
+
+            <ImageButton
+                android:id="@+id/degreesButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/bg_icon_button"
+                android:contentDescription="Mostrar grados del acorde"
+                android:padding="12dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_degrees"
+                app:tint="@color/icon_tint" />
+
+            <ImageButton
+                android:id="@+id/playButton"
+                android:layout_width="52dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/bg_play_button"
+                android:contentDescription="Reproducir progresión"
+                android:padding="13dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_play_stop"
+                app:tint="@color/white" />
+        </LinearLayout>
     </LinearLayout>
 
     <View
@@ -99,28 +177,20 @@
                 android:text="Compás 1 / 1" />
 
             <TextView
+                android:id="@+id/libraryButton"
+                style="@style/ChipButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="Improvisaciones" />
+
+            <TextView
                 android:id="@+id/progressionButton"
                 style="@style/ChipButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
                 android:text="Progresión" />
-
-            <TextView
-                android:id="@+id/tempoButton"
-                style="@style/ChipButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:text="Tempo 80" />
-
-            <TextView
-                android:id="@+id/metronomeButton"
-                style="@style/ChipButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:text="Metrónomo" />
 
             <TextView
                 android:id="@+id/scaleRootButton"
@@ -153,22 +223,6 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
                 android:text="Acorde" />
-
-            <TextView
-                android:id="@+id/colorsButton"
-                style="@style/ChipButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:text="Color" />
-
-            <TextView
-                android:id="@+id/degreesButton"
-                style="@style/ChipButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:text="Grados" />
         </LinearLayout>
     </HorizontalScrollView>
 
