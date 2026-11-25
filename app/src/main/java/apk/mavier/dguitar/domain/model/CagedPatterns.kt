@@ -25,6 +25,10 @@ object CagedPatterns {
 
     val occurrences: List<CagedPatternOccurrence> by lazy { buildOccurrences() }
 
+    private val occurrencesByNumber: Map<Int, List<CagedPatternOccurrence>> by lazy {
+        occurrences.groupBy { it.number }
+    }
+
     private fun buildOccurrences(): List<CagedPatternOccurrence> {
         val result = ArrayList<CagedPatternOccurrence>()
         var shift = 0
@@ -51,7 +55,7 @@ object CagedPatterns {
     }
 
     fun occurrencesFor(number: Int): List<CagedPatternOccurrence> =
-        occurrences.filter { it.number == number }
+        occurrencesByNumber[number].orEmpty()
 
     fun contains(number: Int, fret: Int): Boolean =
         occurrencesFor(number).any { it.contains(fret) }

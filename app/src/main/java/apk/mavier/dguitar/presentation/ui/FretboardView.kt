@@ -21,8 +21,6 @@ import apk.mavier.dguitar.domain.model.ChordVoicingResolver
 import apk.mavier.dguitar.domain.model.VoicingKey
 import apk.mavier.dguitar.presentation.theme.ChordColorProvider
 import apk.mavier.dguitar.domain.model.FretboardConfig
-import apk.mavier.dguitar.domain.model.HarmonicChord
-import apk.mavier.dguitar.domain.model.HarmonicCircle
 import apk.mavier.dguitar.domain.model.ImprovChord
 import apk.mavier.dguitar.domain.model.Improvisation
 import apk.mavier.dguitar.presentation.theme.NoteColorProvider
@@ -47,6 +45,12 @@ class FretboardView @JvmOverloads constructor(
             field = value
             playedString = -1
             playedFret = -1
+            renderModel = null
+            renderModelConfig = null
+            voicingCache = null
+            voicingConfig = null
+            improvLines = emptyList()
+            improvLinesConfig = null
             ensureGeometry()
             invalidate()
         }
@@ -178,6 +182,19 @@ class FretboardView @JvmOverloads constructor(
     private var stringYs = FloatArray(0)
     private var geometry: FretboardGeometry? = null
     private val segmentPath = Path()
+    private val starPath = Path()
+    private val improvPath = Path()
+    private val boardRect = RectF()
+    private val ringRect = RectF()
+    private val badgeRect = RectF()
+
+    private var renderModel: FretboardRenderModel? = null
+    private var renderModelConfig: FretboardConfig? = null
+    private var voicingCache: ChordVoicing? = null
+    private var voicingConfig: FretboardConfig? = null
+    private var voicingBucket = Int.MIN_VALUE
+    private var improvLines: List<List<VoicingKey>> = emptyList()
+    private var improvLinesConfig: FretboardConfig? = null
 
     private var downX = 0f
     private var downY = 0f
@@ -233,6 +250,55 @@ class FretboardView @JvmOverloads constructor(
         return (scrollX + viewport / 2f) / fretWidth + 0.5f
     }
 
+    private fun currentRenderModel(): FretboardRenderModel {
+        val cached = renderModel
+        if (cached != null && renderModelConfig === config) return cached
+        val built = FretboardRenderModel.build(config)
+        renderModel = built
+        renderModelConfig = config
+        return built
+    }
+
+    private fun currentVoicing(): ChordVoicing {
+        val centerFret = currentCenterFret()
+        val bucket = if (config.chordPattern == null) 0 else centerFret.toInt()
+        val cached = voicingCache
+        if (cached != null && voicingConfig === config && voicingBucket == bucket) {
+            return cached
+        }
+        val computed = ChordVoicingResolver.voicing(config, centerFret)
+        voicingCache = computed
+        voicingConfig = config
+        voicingBucket = bucket
+        return computed
+    }
+
+    private fun currentImprovLines(): List<List<VoicingKey>> {
+        if (improvLinesConfig === config) return improvLines
+
+        val computed = if (config.mode != ViewMode.IMPROV || config.improvOverlayScale) {
+            emptyList()
+        } else {
+            val active = config.improvActive
+            if (active == null) {
+                emptyList()
+            } else {
+                val unique = ArrayList<List<VoicingKey>>()
+                for (occurrence in CagedPatterns.occurrences) {
+                    val positions = improvFormationPositions(config, active, occurrence)
+                    if (positions.size >= 2 && unique.none { it == positions }) {
+                        unique.add(positions)
+                    }
+                }
+                unique
+            }
+        }
+
+        improvLines = computed
+        improvLinesConfig = config
+        return computed
+    }
+
     private fun fretX(fret: Int): Float = geometry?.fretX(fret, scrollX) ?: 0f
 
     private fun cellCenterX(fret: Int): Float = geometry?.cellCenterX(fret, scrollX) ?: 0f
@@ -245,8 +311,8 @@ class FretboardView @JvmOverloads constructor(
         ensureGeometry()
         if (stringYs.isEmpty()) return
 
-        val chordVoicing = ChordVoicingResolver.voicing(config, currentCenterFret())
-        val overlayChords = HarmonicCircle.effectiveChords(config)
+        val model = currentRenderModel()
+        val chordVoicing = currentVoicing()
         val topY = stringYs.first()
         val bottomY = stringYs.last()
         val boardTop = topY - noteRadius - dp(8f)
@@ -255,7 +321,7 @@ class FretboardView @JvmOverloads constructor(
         canvas.save()
         canvas.clipRect(boardStartX, 0f, width.toFloat(), height.toFloat())
 
-        val boardRect = RectF(boardStartX, boardTop, width.toFloat(), boardBottom)
+        boardRect.set(boardStartX, boardTop, width.toFloat(), boardBottom)
         canvas.drawRoundRect(boardRect, dp(12f), dp(12f), boardPaint)
         canvas.drawRoundRect(boardRect, dp(12f), dp(12f), boardEdgePaint)
 
@@ -288,7 +354,7 @@ class FretboardView @JvmOverloads constructor(
 
         drawChordBarres(canvas, chordVoicing)
         drawImprovLine(canvas)
-        drawNotes(canvas, chordVoicing.positions, overlayChords)
+        drawNotes(canvas, chordVoicing.positions, model)
 
         for (fret in 1..FRET_COUNT) {
             val x = cellCenterX(fret)
@@ -300,7 +366,7 @@ class FretboardView @JvmOverloads constructor(
 
         canvas.restore()
 
-        drawGutter(canvas, overlayChords, chordVoicing)
+        drawGutter(canvas, model, chordVoicing)
     }
 
     private fun drawInlays(canvas: Canvas) {
@@ -323,17 +389,17 @@ class FretboardView @JvmOverloads constructor(
     }
 
     private fun drawStar(canvas: Canvas, cx: Float, cy: Float, radius: Float, paint: Paint) {
-        val path = Path()
+        starPath.reset()
         val points = 5
         for (i in 0 until points * 2) {
             val r = if (i % 2 == 0) radius else radius * 0.45f
             val angle = Math.PI / 2.0 + i * Math.PI / points
             val x = cx + (r * cos(angle)).toFloat()
             val y = cy - (r * sin(angle)).toFloat()
-            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            if (i == 0) starPath.moveTo(x, y) else starPath.lineTo(x, y)
         }
-        path.close()
-        canvas.drawPath(path, paint)
+        starPath.close()
+        canvas.drawPath(starPath, paint)
     }
 
     private fun patternSegments(): List<PatternSegment> {
@@ -387,13 +453,6 @@ class FretboardView @JvmOverloads constructor(
     private fun hitPatternSegment(x: Float, y: Float): Int? =
         PatternSegments.hit(patternSegments(), x, y, density)
 
-    private data class ChordHit(
-        val rootPc: Int,
-        val role: Int,
-        val color: Int,
-        val degree: Int
-    )
-
     fun currentSequenceOccurrence(): CagedPatternOccurrence? {
         val pattern = config.selectedPattern
         if (pattern == null) {
@@ -423,7 +482,7 @@ class FretboardView @JvmOverloads constructor(
         } ?: lowest
     }
     fun currentChordFormationPositions(): List<Pair<Int, Int>> {
-        val formation = ChordVoicingResolver.voicing(config, currentCenterFret()).positions
+        val formation = currentVoicing().positions
         return formation
             .sortedByDescending { it.stringIndex }
             .map { it.stringIndex to it.fret }
@@ -460,25 +519,16 @@ class FretboardView @JvmOverloads constructor(
     }
 
     private fun drawImprovLine(canvas: Canvas) {
-        if (config.mode != ViewMode.IMPROV) return
-        if (config.improvOverlayScale) return
+        val lines = currentImprovLines()
+        if (lines.isEmpty()) return
         val active = config.improvActive ?: return
 
         improvLinePaint.color = ChordColorProvider.baseColor(active.rootPc)
         improvLinePaint.strokeWidth = dp(1.7f)
         improvLinePaint.alpha = 150
 
-        val drawn = HashSet<String>()
-        for (occurrence in CagedPatterns.occurrences) {
-            val positions = improvFormationPositions(config, active, occurrence)
-            if (positions.size < 2) continue
-
-            val signature = positions.joinToString(",") {
-                "${it.stringIndex}:${it.fret}"
-            }
-            if (!drawn.add(signature)) continue
-
-            val path = Path()
+        for (positions in lines) {
+            improvPath.reset()
             var first = true
             for (position in positions) {
                 val x = if (position.fret == 0) {
@@ -488,33 +538,16 @@ class FretboardView @JvmOverloads constructor(
                 }
                 val y = stringYs.getOrNull(position.stringIndex) ?: continue
                 if (first) {
-                    path.moveTo(x, y)
+                    improvPath.moveTo(x, y)
                     first = false
                 } else {
-                    path.lineTo(x, y)
+                    improvPath.lineTo(x, y)
                 }
             }
-            if (!first) canvas.drawPath(path, improvLinePaint)
+            if (!first) canvas.drawPath(improvPath, improvLinePaint)
         }
     }
 
-    private fun overlayHits(
-        chords: List<HarmonicChord>,
-        pitchClass: Int
-    ): List<ChordHit> {
-        if (chords.isEmpty()) return emptyList()
-
-        val hits = ArrayList<ChordHit>(chords.size)
-        for (chord in chords) {
-            val role = chord.quality.roleOf(chord.rootPc, pitchClass) ?: continue
-            val color = ChordColorProvider.shadeForRole(
-                ChordColorProvider.baseColor(chord.rootPc),
-                role
-            )
-            hits.add(ChordHit(chord.rootPc, role, color, chord.degree))
-        }
-        return hits
-    }
 
     private fun drawChordRings(
         canvas: Canvas,
@@ -534,14 +567,14 @@ class FretboardView @JvmOverloads constructor(
             return
         }
 
-        val rect = RectF(x - radius, y - radius, x + radius, y + radius)
+        ringRect.set(x - radius, y - radius, x + radius, y + radius)
         val sweep = 360f / hits.size
         val gap = 12f
         for (index in hits.indices) {
             chordRingPaint.color = hits[index].color
             chordRingPaint.alpha = 150
             val start = -90f + index * sweep + gap / 2f
-            canvas.drawArc(rect, start, sweep - gap, false, chordRingPaint)
+            canvas.drawArc(ringRect, start, sweep - gap, false, chordRingPaint)
         }
     }
 
@@ -566,7 +599,8 @@ class FretboardView @JvmOverloads constructor(
         val distance = radius + dp(1.5f) + max(width, height) / 2f
         val centerX = x + (cos(angle) * distance).toFloat()
         val centerY = noteY - (sin(angle) * distance).toFloat()
-        val rect = RectF(
+        val rect = badgeRect
+        rect.set(
             centerX - width / 2f,
             centerY - height / 2f,
             centerX + width / 2f,
@@ -679,15 +713,20 @@ class FretboardView @JvmOverloads constructor(
         val x = cellCenterX(fret)
         if (x < boardStartX - noteRadius || x > width + noteRadius) return
 
-        val ys = if (voicing.barreAllStrings) {
-            listOfNotNull(stringYs.firstOrNull(), stringYs.lastOrNull())
+        var top = Float.MAX_VALUE
+        var bottom = -Float.MAX_VALUE
+        if (voicing.barreAllStrings) {
+            top = stringYs.firstOrNull() ?: return
+            bottom = stringYs.lastOrNull() ?: return
         } else {
-            voicing.positions
-                .filter { it.fret == fret }
-                .mapNotNull { stringYs.getOrNull(it.stringIndex) }
+            for (position in voicing.positions) {
+                if (position.fret != fret) continue
+                val y = stringYs.getOrNull(position.stringIndex) ?: continue
+                if (y < top) top = y
+                if (y > bottom) bottom = y
+            }
         }
-        val top = ys.minOrNull() ?: return
-        val bottom = ys.maxOrNull() ?: return
+        if (top > bottom) return
 
         barrePaint.strokeWidth = noteRadius * 1.9f
         barrePaint.alpha = 230
@@ -696,18 +735,14 @@ class FretboardView @JvmOverloads constructor(
     private fun drawNotes(
         canvas: Canvas,
         chordFormation: Set<VoicingKey>,
-        overlayChords: List<HarmonicChord>
+        model: FretboardRenderModel
     ) {
         val cfg = config
         val strings = cfg.tuning.strings
-        val scaleSet = cfg.scale.pitchClasses(cfg.rootPc)
-        val chordSet = cfg.chord.pitchClasses(cfg.rootPc)
+        val scaleSet = model.scalePitchClasses
+        val chordSet = model.chordPitchClasses
         val selectedPattern = cfg.selectedPattern
-        val selectedOccurrences = if (cfg.mode == ViewMode.SCALE && selectedPattern != null) {
-            CagedPatterns.occurrencesFor(selectedPattern)
-        } else {
-            emptyList()
-        }
+        val selectedOccurrences = model.selectedOccurrences
 
         for (stringIndex in strings.indices) {
             val y = stringYs[stringIndex]
@@ -725,7 +760,7 @@ class FretboardView @JvmOverloads constructor(
                     ViewMode.SCALE -> {
                         val degree = cfg.scale.degreeOf(cfg.rootPc, pitchClass)
                         val inScale = degree > 0 && pitchClass in scaleSet
-                        val hits = overlayHits(overlayChords, pitchClass)
+                        val hits = model.hitsFor(pitchClass)
 
                         if (inScale) {
                             val insideSelectedPattern = selectedPattern == null ||
@@ -936,13 +971,15 @@ class FretboardView @JvmOverloads constructor(
 
     private fun drawGutter(
         canvas: Canvas,
-        overlayChords: List<HarmonicChord>,
+        model: FretboardRenderModel,
         chordVoicing: ChordVoicing
     ) {
         val strings = config.tuning.strings
         if (stringYs.isEmpty()) return
         val cx = gutterWidth * 0.5f
         val chordFormation = chordVoicing.positions
+        val selected = if (config.mode == ViewMode.CHORD) config.chordPattern else config.selectedPattern
+        val patternIncludesOpen = selected == null || CagedPatterns.includesOpenString(selected)
 
         for (stringIndex in strings.indices) {
             if (stringIndex >= stringYs.size) continue
@@ -959,8 +996,6 @@ class FretboardView @JvmOverloads constructor(
             val degree = config.scale.degreeOf(config.rootPc, openPitchClass)
             val improvScaleOpen = config.mode == ViewMode.IMPROV &&
                 config.improvOverlayScale && config.improvShowScale && degree > 0
-            val selected = if (config.mode == ViewMode.CHORD) config.chordPattern else config.selectedPattern
-            val patternIncludesOpen = selected == null || CagedPatterns.includesOpenString(selected)
             val showScaleTone = config.mode == ViewMode.SCALE && degree > 0 && patternIncludesOpen
             val hasVoicedString = chordFormation.any { it.stringIndex == stringIndex }
             val openVoicedString = chordFormation.any {
@@ -1037,7 +1072,7 @@ class FretboardView @JvmOverloads constructor(
                 }
             }
 
-            val openHits = overlayHits(overlayChords, openPitchClass)
+            val openHits = model.hitsFor(openPitchClass)
             if (openHits.isNotEmpty()) {
                 drawChordRings(canvas, cx, y, noteRadius * 0.9f, openHits)
             }

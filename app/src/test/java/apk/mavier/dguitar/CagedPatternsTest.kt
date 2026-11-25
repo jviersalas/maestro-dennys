@@ -45,6 +45,11 @@ class CagedPatternsTest {
     }
 
     @Test
+    fun unknownPatternHasNoOccurrences() {
+        assertTrue(CagedPatterns.occurrencesFor(9).isEmpty())
+    }
+
+    @Test
     fun allWindowsStayWithinTheNeck() {
         assertTrue(
             CagedPatterns.occurrences.all {
