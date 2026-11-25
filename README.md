@@ -43,6 +43,22 @@
   build.
 - **Textos centralizados** en `strings.xml`, listos para futuras traducciones.
 
+## Ficha rápida
+
+| | |
+|---|---|
+| **Plataforma** | Android nativo (Kotlin) |
+| **Compatibilidad** | Android 8.0 en adelante (API 26+) |
+| **Instrumentos** | Guitarra 6 cuerdas · Bajo 4 y 5 cuerdas |
+| **Afinaciones** | Estándar, Drop D, medio tono abajo, DADGAD, Open G, Open E |
+| **Escalas** | 51 escalas y modos |
+| **Acordes** | 24 tipos de acorde |
+| **Improvisación** | 40–220 BPM · progresiones guardadas · metrónomo |
+| **Tests** | Dominio, audio, geometría del mástil y playback |
+| **CI** | GitHub Actions (tests + lint + build) |
+| **Release** | R8 activo (~1.9 MB) |
+| **Idioma** | Español |
+
 ## Contenido
 
 1. [Novedades](#novedades)
@@ -148,22 +164,38 @@ En la app puedes:
 
 Un laboratorio para crear progresiones por secciones y practicar sobre ellas:
 
-- **Secciones y acordes** propios (tónica + calidad).
-- **Tempo ajustable** entre **40 y 220 BPM**.
+- **Biblioteca por instrumento**: crea, renombra, elimina y cambia entre varias
+  progresiones; guitarra y bajo guardan las suyas por separado.
+- **Secciones y acordes** propios (tónica + calidad), con compases por acorde.
+- **Tempo ajustable** entre **40 y 220 BPM**, recordado por instrumento.
+- **Metrónomo** con acento en el primer tiempo.
 - Por cada acorde:
   - **Nota principal:** toca solo la nota más grave (la raíz del acorde).
   - **Arreglo:** toca las notas del acorde en arpegio (por defecto).
   - **Toques por compás:** **8, 4, 2 o 1**, repartidos dentro del compás.
-- El mástil resalta el acorde actual y el siguiente mientras suena la progresión.
+- **Capas independientes**: escala, notas del acorde, colores y grados se pueden
+  mostrar u ocultar por separado.
+- **Tónica y escala** de improvisación configurables; la tónica puede seguir
+  automáticamente al primer acorde de la progresión.
+- **Toca el mástil** para escuchar la nota, tanto en guitarra como en bajo.
+- El mástil resalta el acorde actual y el siguiente mientras suena la progresión,
+  con barra de progreso por compás.
 
 ---
 
 ## Otras herramientas
 
-- **Afinador** cromático con detección de tono en tiempo real.
+- **Afinador cromático** con detección de tono en tiempo real:
+  - modo **automático** que elige la cuerda más cercana con histéresis,
+  - modo **manual** tocando una cuerda de la fila,
+  - lectura de Hz y cents, tolerancia de ±5 cents e indicador **EN TONO**.
 - **Modo libre** para explorar el mástil sin colores ni filtros.
-- **Audio sintetizado** de cuerda pulsada para escuchar cada nota.
-- **Colores por grado** para reconocer la función de cada nota de un vistazo.
+- **Audio sintetizado** de cuerda pulsada (Karplus–Strong) para escuchar cada
+  nota, con modo bajo.
+- **Secuencia** de escala (subida y bajada) y **púa** de acordes.
+- **Patrones CAGED** seleccionables desde el mástil.
+- **Colores por grado** y **badges de grados** para reconocer la función de cada
+  nota de un vistazo.
 
 ---
 
