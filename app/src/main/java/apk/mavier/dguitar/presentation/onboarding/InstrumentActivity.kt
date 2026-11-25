@@ -51,10 +51,9 @@ class InstrumentActivity : AppCompatActivity() {
             else -> current.mode
         }
         settingsRepository.save(current.copy(tuning = tuning, mode = mode))
+        settingsRepository.setOnboardingCompleted(true)
 
         startActivity(Intent(this, MainActivity::class.java))
-        @Suppress("DEPRECATION")
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
         finish()
     }
 }

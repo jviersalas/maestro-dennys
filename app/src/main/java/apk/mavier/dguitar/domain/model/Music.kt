@@ -273,7 +273,7 @@ object Scales {
         LOCRIAN_N6
     )
 
-    val default = LOCRIAN_N6
+    val default = PENTATONIC_MINOR
 }
 
 data class ChordQuality(val name: String, val symbol: String, val intervals: List<Int>) {

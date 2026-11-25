@@ -161,10 +161,8 @@ class ImprovisationActivity : AppCompatActivity() {
 
         val guitarSynth = GuitarSynth().apply { bassMode = !isGuitar }
         synth = guitarSynth
-        if (!isGuitar) {
-            binding.improvFretboard.onNotePlayed = { stringIndex, midi ->
-                guitarSynth.pluck(stringIndex, midi)
-            }
+        binding.improvFretboard.onNotePlayed = { stringIndex, midi ->
+            guitarSynth.pluck(stringIndex, midi)
         }
         toneGenerator = runCatching {
             ToneGenerator(AudioManager.STREAM_MUSIC, METRONOME_VOLUME)

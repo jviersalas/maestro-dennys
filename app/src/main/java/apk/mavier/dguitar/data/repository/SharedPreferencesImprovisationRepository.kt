@@ -74,10 +74,10 @@ class SharedPreferencesImprovisationRepository(context: Context) :
     }
 
     override fun loadShowDegrees(): Boolean =
-        prefs.getBoolean(PreferenceKeys.DEGREES, true)
+        prefs.getBoolean(PreferenceKeys.IMPROV_DEGREES, true)
 
     override fun saveShowDegrees(show: Boolean) {
-        prefs.edit().putBoolean(PreferenceKeys.DEGREES, show).apply()
+        prefs.edit().putBoolean(PreferenceKeys.IMPROV_DEGREES, show).apply()
     }
 
     override fun loadScaleRoot(): Int =

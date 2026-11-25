@@ -2,6 +2,7 @@ package apk.mavier.dguitar.data.preferences
 
 internal object PreferenceKeys {
     const val FILE = "dguitar_prefs"
+    const val ONBOARDING_COMPLETED = "onboarding_completed"
 
     const val MODE = "mode"
     const val ROOT = "root"
@@ -33,6 +34,7 @@ internal object PreferenceKeys {
     const val IMPROV_SCALE = "improv_scale"
     const val IMPROV_SHOW_SCALE = "improv_show_scale"
     const val IMPROV_SHOW_CHORD = "improv_show_chord"
+    const val IMPROV_DEGREES = "improv_degrees"
     const val IMPROV_COLORS = "improv_colors"
     const val IMPROV_METRONOME = "improv_metronome"
 }
