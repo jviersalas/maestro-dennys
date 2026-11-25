@@ -31,6 +31,10 @@ data class ChordDiagramData(
  */
 object ChordTheory {
 
+    private val LETTERS = arrayOf("C", "D", "E", "F", "G", "A", "B")
+    private val LETTER_PCS = intArrayOf(0, 2, 4, 5, 7, 9, 11)
+    private val SOLFEGE_LETTERS = arrayOf("Do", "Re", "Mi", "Fa", "Sol", "La", "Si")
+
     fun tones(quality: ChordQuality): List<ChordTone> =
         quality.intervals.distinct().map { semitone ->
             ChordTone(
@@ -39,6 +43,82 @@ object ChordTheory {
                 intervalName = intervalName(quality, semitone)
             )
         }
+
+    /**
+     * Spells a chord tone following its musical function, so a D major third is
+     * F# (not Gb) even when the rest of the app is using flat names.
+     */
+    fun noteName(
+        rootPc: Int,
+        quality: ChordQuality,
+        useFlats: Boolean,
+        semitone: Int
+    ): String = spelled(rootPc, useFlats, semitone, quality, solfege = false)
+
+    fun noteSolfege(
+        rootPc: Int,
+        quality: ChordQuality,
+        useFlats: Boolean,
+        semitone: Int
+    ): String = spelled(rootPc, useFlats, semitone, quality, solfege = true)
+
+    fun noteNameForPitchClass(
+        rootPc: Int,
+        quality: ChordQuality,
+        useFlats: Boolean,
+        pitchClass: Int,
+        solfege: Boolean
+    ): String {
+        val pc = ((pitchClass % 12) + 12) % 12
+        val tone = tones(quality).firstOrNull {
+            ((rootPc + it.semitone) % 12 + 12) % 12 == pc
+        }
+        if (tone != null) {
+            return spelled(rootPc, useFlats, tone.semitone, quality, solfege)
+        }
+        return if (solfege) Pitch.solfegeName(pc, useFlats) else Pitch.name(pc, useFlats)
+    }
+
+    private fun spelled(
+        rootPc: Int,
+        useFlats: Boolean,
+        semitone: Int,
+        quality: ChordQuality,
+        solfege: Boolean
+    ): String {
+        val rootName = Pitch.name(rootPc, useFlats)
+        val rootLetter = LETTERS.indexOf(rootName[0].toString()).coerceAtLeast(0)
+        val degree = spellingDegree(quality, semitone)
+        val letterIndex = (rootLetter + (degree - 1) % 7) % 7
+        val targetPc = ((rootPc + semitone) % 12 + 12) % 12
+        var diff = targetPc - LETTER_PCS[letterIndex]
+        while (diff > 6) diff -= 12
+        while (diff < -6) diff += 12
+        val accidental = if (diff > 0) "#".repeat(diff) else "b".repeat(-diff)
+        val letter = if (solfege) SOLFEGE_LETTERS[letterIndex] else LETTERS[letterIndex]
+        return letter + accidental
+    }
+
+    private fun spellingDegree(quality: ChordQuality, semitone: Int): Int {
+        val normalized = ((semitone % 12) + 12) % 12
+        if (normalized == 8 && isAugmented(quality)) return 5
+        if (normalized == 9 && isDiminishedSeventh(quality)) return 7
+        return degreeNumber(semitone)
+    }
+
+    private fun degreeNumber(semitone: Int): Int {
+        val normalized = ((semitone % 12) + 12) % 12
+        val base = when (normalized) {
+            0 -> 1
+            1, 2 -> 2
+            3, 4 -> 3
+            5 -> 4
+            6, 7 -> 5
+            8, 9 -> 6
+            else -> 7
+        }
+        return base + 7 * (semitone / 12)
+    }
 
     private fun isAugmented(quality: ChordQuality): Boolean =
         quality === Chords.AUGMENTED ||
@@ -156,7 +236,7 @@ object ChordTheory {
         val tones = tones(quality)
         val formula = tones.joinToString(" · ") { it.degree }
         val notes = tones.joinToString(" · ") {
-            Pitch.solfegeName(((rootPc + it.semitone) % 12 + 12) % 12, useFlats)
+            noteSolfege(rootPc, quality, useFlats, it.semitone)
         }
         return "Se parte de la nota raíz $rootSolfege ($rootName) y se aplica la fórmula " +
             "$formula. Eso da las notas $notes."
@@ -185,8 +265,8 @@ object ChordTheory {
 
     fun notesText(rootPc: Int, quality: ChordQuality, useFlats: Boolean): String =
         tones(quality).joinToString("\n") { tone ->
-            val pc = ((rootPc + tone.semitone) % 12 + 12) % 12
-            "• ${Pitch.solfegeName(pc, useFlats)} (${Pitch.name(pc, useFlats)}) — " +
+            "• ${noteSolfege(rootPc, quality, useFlats, tone.semitone)} " +
+                "(${noteName(rootPc, quality, useFlats, tone.semitone)}) — " +
                 "${tone.intervalName} (${tone.degree})"
         }
 
@@ -199,8 +279,8 @@ object ChordTheory {
         val voicing = voicing(rootPc, quality, tuning)
         val tones = tones(quality)
         val notes = tones.map { tone ->
-            val pc = ((rootPc + tone.semitone) % 12 + 12) % 12
-            Pitch.solfegeName(pc, useFlats) to Pitch.name(pc, useFlats)
+            noteSolfege(rootPc, quality, useFlats, tone.semitone) to
+                noteName(rootPc, quality, useFlats, tone.semitone)
         }
 
         val fretted = voicing.frets.values.filter { it > 0 }
@@ -220,8 +300,12 @@ object ChordTheory {
                 strings.add(
                     ChordDiagramString(
                         fret = fret,
-                        noteName = Pitch.name(pc, useFlats),
-                        solfege = Pitch.solfegeName(pc, useFlats),
+                        noteName = noteNameForPitchClass(
+                            rootPc, quality, useFlats, pc, solfege = false
+                        ),
+                        solfege = noteNameForPitchClass(
+                            rootPc, quality, useFlats, pc, solfege = true
+                        ),
                         roleSemitone = quality.roleOf(rootPc, pc)
                     )
                 )

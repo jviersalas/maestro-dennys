@@ -18,6 +18,7 @@ import apk.mavier.dguitar.core.audio.GuitarSynth
 import apk.mavier.dguitar.databinding.ActivityMainBinding
 import apk.mavier.dguitar.domain.di.DependencyProvider
 import apk.mavier.dguitar.domain.model.Chords
+import apk.mavier.dguitar.domain.model.ChordTheory
 import apk.mavier.dguitar.domain.model.FretboardConfig
 import apk.mavier.dguitar.domain.model.HarmonicChord
 import apk.mavier.dguitar.domain.model.Pitch
@@ -68,7 +69,9 @@ class MainActivity : AppCompatActivity() {
             configProvider = { config },
             onConfigChange = { updateConfig(it) }
         )
-        config = settingsRepository.load()
+        config = settingsRepository.load().let { loaded ->
+            if (loaded.chordPattern != null) loaded.copy(chordPattern = null) else loaded
+        }
 
         chordGuideController = ChordGuideDialogController(
             activity = this,
@@ -270,12 +273,20 @@ class MainActivity : AppCompatActivity() {
     private fun chordNotesText(): String {
         val pitchClasses = config.chord.pitchClasses(config.rootPc)
             .sortedBy { ((it - config.rootPc) % 12 + 12) % 12 }
-        return pitchClasses.joinToString(" · ") { Pitch.name(it, config.useFlats) }
+        return pitchClasses.joinToString(" · ") {
+            ChordTheory.noteNameForPitchClass(
+                config.rootPc,
+                config.chord,
+                config.useFlats,
+                it,
+                solfege = false
+            )
+        }
     }
 
     private fun showRootMenu(anchor: View) {
         showLabeledMenu(anchor, (0..11).toList(), { pitchClass -> Pitch.name(pitchClass, config.useFlats) }) { pitchClass ->
-            updateConfig(config.copy(rootPc = pitchClass))
+            updateConfig(config.copy(rootPc = pitchClass, chordPattern = null))
         }
     }
 
@@ -343,7 +354,9 @@ class MainActivity : AppCompatActivity() {
             popup.setOnMenuItemClickListener { item ->
                 when (item.itemId) {
                     0 -> updateConfig(config.copy(mode = ViewMode.SCALE))
-                    1 -> updateConfig(config.copy(mode = ViewMode.CHORD))
+                    1 -> updateConfig(
+                        config.copy(mode = ViewMode.CHORD, chordPattern = null)
+                    )
                     2 -> updateConfig(config.copy(mode = ViewMode.FREE))
                     3 -> openImprovisation()
                 }
@@ -362,7 +375,7 @@ class MainActivity : AppCompatActivity() {
             ViewMode.SCALE -> showScaleDialog()
 
             ViewMode.CHORD -> showLabeledMenu(anchor, Chords.all, { it.name }) { chord ->
-                updateConfig(config.copy(chord = chord))
+                updateConfig(config.copy(chord = chord, chordPattern = null))
                 binding.root.post { chordGuideController.show() }
             }
 

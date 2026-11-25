@@ -209,6 +209,9 @@ class ImprovisationActivity : AppCompatActivity() {
         binding.showChordButton.setOnClickListener { toggleChordLayer() }
         binding.colorsButton.setOnClickListener { toggleColors() }
         binding.metronomeButton.setOnClickListener { toggleMetronome() }
+        binding.optionsButton.setOnClickListener { toggleOptions() }
+        binding.optionsButton.isSelected = false
+        binding.optionsButton.contentDescription = "Mostrar opciones"
 
         renderAll()
     }
@@ -1041,6 +1044,14 @@ class ImprovisationActivity : AppCompatActivity() {
             stopMetronome()
         }
         renderHeader()
+    }
+
+    private fun toggleOptions() {
+        val show = binding.optionsBar.visibility != View.VISIBLE
+        binding.optionsBar.visibility = if (show) View.VISIBLE else View.GONE
+        binding.optionsButton.isSelected = show
+        binding.optionsButton.contentDescription =
+            if (show) "Ocultar opciones" else "Mostrar opciones"
     }
 
     private fun togglePlayback() {

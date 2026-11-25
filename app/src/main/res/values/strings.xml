@@ -25,6 +25,7 @@
     <string name="bar_placeholder">Compás 1 / 1</string>
     <string name="improvisations">Improvisaciones</string>
     <string name="progression">Progresión</string>
+    <string name="options">Opciones</string>
     <string name="tonic_placeholder">Tónica A</string>
     <string name="scale_placeholder">Pentatónica menor</string>
     <string name="chord">Acorde</string>
