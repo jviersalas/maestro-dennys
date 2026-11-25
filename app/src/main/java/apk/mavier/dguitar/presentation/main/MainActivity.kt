@@ -24,7 +24,6 @@ import apk.mavier.dguitar.core.audio.GuitarSynth
 import apk.mavier.dguitar.databinding.ActivityMainBinding
 import apk.mavier.dguitar.domain.di.DependencyProvider
 import apk.mavier.dguitar.databinding.DialogHarmonicCircleBinding
-import apk.mavier.dguitar.domain.model.CagedPatternOccurrence
 import apk.mavier.dguitar.domain.model.ChordQuality
 import apk.mavier.dguitar.domain.model.Chords
 import apk.mavier.dguitar.domain.model.FretboardConfig
@@ -566,17 +565,15 @@ class MainActivity : AppCompatActivity() {
     private fun startSequence() {
         stopSequence()
 
-        val baseMidi = 60 + config.rootPc
-        val notes = config.scale.exampleSequence.map { baseMidi + it }
+        val notes = config.scale.fullRangeSequence(
+            config.rootPc,
+            config.tuning,
+            FretboardView.FRET_COUNT
+        )
         if (notes.isEmpty()) return
 
-        val occurrence = binding.fretboard.currentSequenceOccurrence()
-        val positions = notes.map { sequencePositionFor(it, occurrence) }
-        val playedFrets = positions.filterNotNull().map { it.fret }
-        val minFret = playedFrets.minOrNull()
-        val maxFret = playedFrets.maxOrNull()
-        if (minFret != null && maxFret != null) {
-            binding.fretboard.focusFretRange(minFret, maxFret)
+        val positions = notes.map {
+            SequencePositions.freePosition(it, config.tuning, FretboardView.FRET_COUNT)
         }
 
         sequencePlaying = true
@@ -600,7 +597,7 @@ class MainActivity : AppCompatActivity() {
                     binding.fretboard.highlightNote(
                         position.stringIndex,
                         position.fret,
-                        reveal = false
+                        reveal = true
                     )
                     binding.sequenceButton.text =
                         "Detener · ${Pitch.name(Pitch.pitchClass(playedMidi), config.useFlats)}"
@@ -611,16 +608,6 @@ class MainActivity : AppCompatActivity() {
         }
         sequenceRunnable = runnable
         sequenceHandler.post(runnable)
-    }
-
-    private fun sequencePositionFor(
-        midi: Int,
-        occurrence: CagedPatternOccurrence?
-    ): SequencePositions.Position? {
-        if (occurrence != null) {
-            SequencePositions.positionInOccurrence(midi, occurrence, config.tuning)?.let { return it }
-        }
-        return SequencePositions.freePosition(midi, config.tuning, FretboardView.FRET_COUNT)
     }
 
     private fun stopSequence() {

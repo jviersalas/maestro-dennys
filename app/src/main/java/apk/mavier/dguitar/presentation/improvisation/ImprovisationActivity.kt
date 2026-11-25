@@ -909,7 +909,10 @@ class ImprovisationActivity : AppCompatActivity() {
         val chord = bar.step.chord
         val hits = chord.normalizedHitsPerBar
         val allPositions = binding.improvFretboard.improvArpeggioPositions()
-        val rootPosition = lowestRootPosition(chord.rootPc) ?: allPositions.firstOrNull()
+        val rootPosition = SequencePositions
+            .lowestRootPosition(chord.rootPc, tuning, FretboardView.FRET_COUNT)
+            ?.let { it.stringIndex to it.fret }
+            ?: allPositions.firstOrNull()
         val positions = if (chord.principalOnly) {
             listOfNotNull(rootPosition)
         } else {
@@ -974,26 +977,15 @@ class ImprovisationActivity : AppCompatActivity() {
     private fun playGuideNote(chord: ImprovChord) {
         if (!isGuitar) return
         val guitarSynth = synth ?: return
-        val (stringIndex, fret) = lowestRootPosition(chord.rootPc) ?: return
+        val position = SequencePositions.lowestRootPosition(
+            chord.rootPc,
+            tuning,
+            FretboardView.FRET_COUNT
+        ) ?: return
+        val (stringIndex, fret) = position.stringIndex to position.fret
         val string = tuning.strings.getOrNull(stringIndex) ?: return
         guitarSynth.pluck(stringIndex, string.openMidi + fret)
         binding.improvFretboard.highlightNote(stringIndex, fret, reveal = false)
-    }
-
-    private fun lowestRootPosition(rootPc: Int): Pair<Int, Int>? {
-        var best: Pair<Int, Int>? = null
-        var bestMidi = Int.MAX_VALUE
-        for (stringIndex in tuning.strings.indices) {
-            val openMidi = tuning.strings[stringIndex].openMidi
-            val fret = ((rootPc - openMidi) % 12 + 12) % 12
-            if (fret > FretboardView.FRET_COUNT) continue
-            val midi = openMidi + fret
-            if (midi < bestMidi) {
-                bestMidi = midi
-                best = stringIndex to fret
-            }
-        }
-        return best
     }
 
     private fun beatDurationMs(): Long = 60_000L / bpm

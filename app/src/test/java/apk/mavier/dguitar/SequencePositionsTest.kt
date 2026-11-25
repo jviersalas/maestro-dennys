@@ -2,6 +2,7 @@ package apk.mavier.dguitar
 
 import apk.mavier.dguitar.domain.model.CagedPatterns
 import apk.mavier.dguitar.domain.model.Pitch
+import apk.mavier.dguitar.domain.model.Scales
 import apk.mavier.dguitar.domain.model.SequencePositions
 import apk.mavier.dguitar.domain.model.Tunings
 import org.junit.Assert.assertEquals
@@ -71,5 +72,52 @@ class SequencePositionsTest {
         assertNotNull(position)
         assertEquals(1, position!!.fret)
         assertEquals(60, position.midi(tuning))
+    }
+
+    @Test
+    fun lowestRootStartsOnTheThickestStringForG() {
+        val position = SequencePositions.lowestRootPosition(7, tuning, 22)
+        assertNotNull(position)
+        assertEquals(5, position!!.stringIndex)
+        assertEquals(3, position.fret)
+    }
+
+    @Test
+    fun lowestRootUsesTheClosestPatternForBm() {
+        val position = SequencePositions.lowestRootPosition(11, tuning, 22)
+        assertNotNull(position)
+        assertEquals(4, position!!.stringIndex)
+        assertEquals(2, position.fret)
+    }
+
+    @Test
+    fun bassLowestRootsFollowTheSamePattern() {
+        val g = SequencePositions.lowestRootPosition(7, Tunings.BASS_4, 22)
+        assertNotNull(g)
+        assertEquals(3, g!!.stringIndex)
+        assertEquals(3, g.fret)
+
+        val bm = SequencePositions.lowestRootPosition(11, Tunings.BASS_4, 22)
+        assertNotNull(bm)
+        assertEquals(2, bm!!.stringIndex)
+        assertEquals(2, bm.fret)
+    }
+
+    @Test
+    fun fullScaleSequenceStartsAndEndsOnTheLowestRoot() {
+        val notes = Scales.MAJOR.fullRangeSequence(0, tuning, 22)
+        assertTrue(notes.size > 10)
+        assertEquals(48, notes.first())
+        assertEquals(48, notes.last())
+        val peakIndex = notes.indexOf(notes.maxOrNull()!!)
+        assertTrue(peakIndex in 1 until notes.lastIndex)
+    }
+
+    @Test
+    fun bassFullScaleSequenceStartsAndEndsOnTheLowestRoot() {
+        val notes = Scales.MAJOR.fullRangeSequence(0, Tunings.BASS_4, 22)
+        assertTrue(notes.size > 8)
+        assertEquals(36, notes.first())
+        assertEquals(36, notes.last())
     }
 }

@@ -93,6 +93,30 @@ data class ScaleMode(
      */
     val exampleSequence: List<Int>
         get() = intervals + intervals.asReversed().drop(1)
+
+    fun fullRangeSequence(rootPc: Int, tuning: Tuning, maxFret: Int): List<Int> {
+        val lowest = SequencePositions.lowestRootPosition(rootPc, tuning, maxFret)
+            ?: return emptyList()
+        val lowMidi = lowest.midi(tuning)
+        val scalePcs = pitchClasses(rootPc)
+        var highMidi = lowMidi
+        for (stringIndex in tuning.strings.indices) {
+            val openMidi = tuning.strings[stringIndex].openMidi
+            for (fret in 0..maxFret) {
+                val midi = openMidi + fret
+                if (midi > highMidi && Pitch.pitchClass(midi) in scalePcs) {
+                    highMidi = midi
+                }
+            }
+        }
+        if (highMidi <= lowMidi) return listOf(lowMidi)
+
+        val ascending = ArrayList<Int>()
+        for (midi in lowMidi..highMidi) {
+            if (Pitch.pitchClass(midi) in scalePcs) ascending.add(midi)
+        }
+        return ascending + ascending.asReversed().drop(1)
+    }
 }
 
 object Scales {

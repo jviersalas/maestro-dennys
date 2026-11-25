@@ -86,4 +86,32 @@ object SequencePositions {
         }
         return best
     }
+
+    fun lowestRootPosition(rootPc: Int, tuning: Tuning, maxFret: Int): Position? {
+        val maxStringIndex = tuning.strings.size - 1
+        var best: Position? = null
+        var bestMidi = Int.MAX_VALUE
+        var bestScore = Int.MAX_VALUE
+
+        for (stringIndex in tuning.strings.indices) {
+            val openMidi = tuning.strings[stringIndex].openMidi
+            val fret = ((rootPc - openMidi) % 12 + 12) % 12
+            if (fret > maxFret) continue
+            val midi = openMidi + fret
+            val score = fret + (maxStringIndex - stringIndex)
+            val better = when {
+                midi < bestMidi -> true
+                midi > bestMidi -> false
+                score < bestScore -> true
+                score > bestScore -> false
+                else -> stringIndex > (best?.stringIndex ?: -1)
+            }
+            if (better) {
+                best = Position(stringIndex, fret)
+                bestMidi = midi
+                bestScore = score
+            }
+        }
+        return best
+    }
 }
