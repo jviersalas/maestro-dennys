@@ -18,6 +18,7 @@ import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import apk.mavier.dguitar.core.audio.GuitarSynth
 import apk.mavier.dguitar.databinding.ActivityMainBinding
@@ -39,6 +40,7 @@ import apk.mavier.dguitar.presentation.improvisation.ImprovisationActivity
 import apk.mavier.dguitar.presentation.theme.ChordColorProvider
 import apk.mavier.dguitar.presentation.tuner.TunerActivity
 import apk.mavier.dguitar.presentation.ui.FretboardView
+import apk.mavier.dguitar.presentation.ui.applySystemBarInsets
 
 class MainActivity : AppCompatActivity() {
 
@@ -59,6 +61,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        binding.root.applySystemBarInsets()
 
         val container = (application as DependencyProvider)
         settingsRepository = container.settingsRepository

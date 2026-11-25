@@ -20,4 +20,6 @@ interface ImprovisationRepository {
     fun saveShowChord(show: Boolean)
     fun loadShowColors(): Boolean
     fun saveShowColors(show: Boolean)
+    fun loadMetronome(): Boolean
+    fun saveMetronome(enabled: Boolean)
 }

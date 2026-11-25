@@ -2,6 +2,8 @@ package apk.mavier.dguitar.presentation.improvisation
 
 import apk.mavier.dguitar.R
 import android.graphics.Typeface
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -21,6 +23,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import apk.mavier.dguitar.domain.di.DependencyProvider
 import apk.mavier.dguitar.core.audio.GuitarSynth
@@ -44,6 +47,7 @@ import apk.mavier.dguitar.domain.repository.SettingsRepository
 import apk.mavier.dguitar.domain.usecase.GetImprovisationStepsUseCase
 import apk.mavier.dguitar.presentation.theme.ChordColorProvider
 import apk.mavier.dguitar.presentation.ui.FretboardView
+import apk.mavier.dguitar.presentation.ui.applySystemBarInsets
 
 class ImprovisationActivity : AppCompatActivity() {
 
@@ -67,6 +71,7 @@ class ImprovisationActivity : AppCompatActivity() {
     private var showScale = true
     private var showChord = true
     private var showColors = true
+    private var metronomeEnabled = true
     private var scaleRootPc = 0
     private var scaleRootAuto = true
     private var scale: ScaleMode = Scales.PENTATONIC_MINOR
@@ -75,6 +80,9 @@ class ImprovisationActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private var playbackRunnable: Runnable? = null
     private var progressRunnable: Runnable? = null
+    private var metronomeRunnable: Runnable? = null
+    private var beatIndex = 0
+    private var toneGenerator: ToneGenerator? = null
     private val arpeggioHandler = Handler(Looper.getMainLooper())
     private var arpeggioRunnable: Runnable? = null
     private var progressionDialog: AlertDialog? = null
@@ -84,6 +92,8 @@ class ImprovisationActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityImprovisationBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        binding.root.applySystemBarInsets()
 
         val container = (application as DependencyProvider)
         settingsRepository = container.settingsRepository
@@ -100,6 +110,7 @@ class ImprovisationActivity : AppCompatActivity() {
         showScale = improvisationRepository.loadShowScale()
         showChord = improvisationRepository.loadShowChord()
         showColors = improvisationRepository.loadShowColors()
+        metronomeEnabled = improvisationRepository.loadMetronome()
         scale = Scales.all.getOrElse(improvisationRepository.loadScaleIndex()) {
             Scales.PENTATONIC_MINOR
         }
@@ -120,6 +131,9 @@ class ImprovisationActivity : AppCompatActivity() {
                 guitarSynth.pluck(stringIndex, midi)
             }
         }
+        toneGenerator = runCatching {
+            ToneGenerator(AudioManager.STREAM_MUSIC, METRONOME_VOLUME)
+        }.getOrNull()
 
         binding.backButton.setOnClickListener { finish() }
         binding.playButton.setOnClickListener { togglePlayback() }
@@ -136,6 +150,7 @@ class ImprovisationActivity : AppCompatActivity() {
         binding.showScaleButton.setOnClickListener { toggleScaleLayer() }
         binding.showChordButton.setOnClickListener { toggleChordLayer() }
         binding.colorsButton.setOnClickListener { toggleColors() }
+        binding.metronomeButton.setOnClickListener { toggleMetronome() }
 
         renderAll()
     }
@@ -156,6 +171,9 @@ class ImprovisationActivity : AppCompatActivity() {
         progressionDialog?.dismiss()
         progressionDialog = null
         progressionDialogBinding = null
+        stopMetronome()
+        toneGenerator?.release()
+        toneGenerator = null
         handler.removeCallbacksAndMessages(null)
         arpeggioHandler.removeCallbacksAndMessages(null)
     }
@@ -188,6 +206,9 @@ class ImprovisationActivity : AppCompatActivity() {
         binding.tempoButton.contentDescription = "Cambiar tempo, $bpm BPM"
         binding.progressionButton.contentDescription =
             "Editar progresión, ${sections.size} secciones"
+        binding.metronomeButton.isSelected = metronomeEnabled
+        binding.metronomeButton.contentDescription =
+            if (metronomeEnabled) "Desactivar metrónomo" else "Activar metrónomo"
         binding.playButton.text = if (playing) "Detener" else "Play"
         binding.playButton.isSelected = playing
         binding.playButton.contentDescription =
@@ -725,6 +746,17 @@ class ImprovisationActivity : AppCompatActivity() {
         renderGuitarControls()
     }
 
+    private fun toggleMetronome() {
+        metronomeEnabled = !metronomeEnabled
+        improvisationRepository.saveMetronome(metronomeEnabled)
+        if (metronomeEnabled) {
+            if (playing) startMetronomeForBar()
+        } else {
+            stopMetronome()
+        }
+        renderHeader()
+    }
+
     private fun togglePlayback() {
         if (playing) {
             stopPlayback()
@@ -754,6 +786,7 @@ class ImprovisationActivity : AppCompatActivity() {
     private fun beginBar() {
         barStartedAt = SystemClock.elapsedRealtime()
         startProgressTicker()
+        startMetronomeForBar()
         val bar = bars().getOrNull(activeBar)
         if (bar != null) {
             if (isGuitar) {
@@ -815,9 +848,42 @@ class ImprovisationActivity : AppCompatActivity() {
         playbackRunnable = null
         progressRunnable?.let { handler.removeCallbacks(it) }
         progressRunnable = null
+        stopMetronome()
         arpeggioRunnable?.let { arpeggioHandler.removeCallbacks(it) }
         arpeggioRunnable = null
         if (::binding.isInitialized) renderHeader()
+    }
+
+    private fun startMetronomeForBar() {
+        stopMetronome()
+        if (!metronomeEnabled) return
+        beatIndex = 0
+        playMetronomeBeat()
+        val runnable = object : Runnable {
+            override fun run() {
+                if (!playing || !metronomeEnabled) return
+                beatIndex = (beatIndex + 1) % BEATS_PER_BAR.toInt()
+                playMetronomeBeat()
+                handler.postDelayed(this, beatDurationMs())
+            }
+        }
+        metronomeRunnable = runnable
+        handler.postDelayed(runnable, beatDurationMs())
+    }
+
+    private fun playMetronomeBeat() {
+        val tone = if (beatIndex == 0) {
+            ToneGenerator.TONE_PROP_BEEP
+        } else {
+            ToneGenerator.TONE_PROP_BEEP2
+        }
+        toneGenerator?.startTone(tone, METRONOME_TICK_MS)
+    }
+
+    private fun stopMetronome() {
+        metronomeRunnable?.let { handler.removeCallbacks(it) }
+        metronomeRunnable = null
+        toneGenerator?.stopTone()
     }
 
     private fun returnToStart() {
@@ -957,5 +1023,7 @@ class ImprovisationActivity : AppCompatActivity() {
         const val MIN_NOTE_GAP_MS = 30L
         const val PROGRESS_MAX = 1000
         const val PROGRESS_TICK_MS = 50L
+        const val METRONOME_VOLUME = 70
+        const val METRONOME_TICK_MS = 45
     }
 }

@@ -135,6 +135,13 @@ class SharedPreferencesImprovisationRepository(context: Context) :
         prefs.edit().putBoolean(PreferenceKeys.IMPROV_COLORS, show).apply()
     }
 
+    override fun loadMetronome(): Boolean =
+        prefs.getBoolean(PreferenceKeys.IMPROV_METRONOME, true)
+
+    override fun saveMetronome(enabled: Boolean) {
+        prefs.edit().putBoolean(PreferenceKeys.IMPROV_METRONOME, enabled).apply()
+    }
+
     private fun sectionsKey(instrument: ImprovInstrument): String =
         when (instrument) {
             ImprovInstrument.GUITAR -> PreferenceKeys.IMPROV_SECTIONS_GUITAR
