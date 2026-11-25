@@ -1,5 +1,7 @@
 package apk.mavier.dguitar.presentation.main
 
+import apk.mavier.dguitar.R
+
 import android.content.Intent
 import android.os.Bundle
 import android.text.SpannableStringBuilder
@@ -75,8 +77,10 @@ class MainActivity : AppCompatActivity() {
             override fun onNoteStep(step: NoteStep, index: Int) {
                 synth.pluck(step.stringIndex, step.midi)
                 binding.fretboard.highlightNote(step.stringIndex, step.fret, reveal = true)
-                binding.sequenceButton.text =
-                    "Detener · ${Pitch.name(Pitch.pitchClass(step.midi), config.useFlats)}"
+                binding.sequenceButton.text = getString(
+                    R.string.sequence_playing_note,
+                    Pitch.name(Pitch.pitchClass(step.midi), config.useFlats)
+                )
             }
 
             override fun onFinished() {
@@ -198,7 +202,7 @@ class MainActivity : AppCompatActivity() {
         }
         binding.scaleButton.isEnabled = config.mode != ViewMode.FREE
         binding.scaleButton.alpha = if (config.mode == ViewMode.FREE) 0.5f else 1f
-        binding.colorsButton.text = "Color"
+        binding.colorsButton.text = getString(R.string.color)
         binding.colorsButton.isSelected = config.colorsEnabled
         binding.colorsButton.contentDescription =
             if (config.colorsEnabled) "Colores activados" else "Colores desactivados"
@@ -216,7 +220,7 @@ class MainActivity : AppCompatActivity() {
         binding.degreesButton.contentDescription =
             if (config.showDegrees) "Ocultar grados de la escala" else "Mostrar grados de la escala"
         if (!sequencePlaying) {
-            binding.sequenceButton.text = "Secuencia"
+            binding.sequenceButton.text = getString(R.string.sequence)
             binding.sequenceButton.isSelected = false
             binding.sequenceButton.contentDescription = "Reproducir secuencia"
         }
@@ -426,7 +430,7 @@ class MainActivity : AppCompatActivity() {
         if (positions.isEmpty()) return
 
         sequencePlaying = true
-        binding.sequenceButton.text = "Detener"
+        binding.sequenceButton.text = getString(R.string.stop)
         binding.sequenceButton.isSelected = true
         binding.sequenceButton.contentDescription = "Detener secuencia"
 
@@ -444,7 +448,7 @@ class MainActivity : AppCompatActivity() {
         sequencePlaying = false
         sequencePlayer.stop()
         if (::binding.isInitialized) {
-            binding.sequenceButton.text = "Secuencia"
+            binding.sequenceButton.text = getString(R.string.sequence)
             binding.sequenceButton.isSelected = false
             binding.sequenceButton.contentDescription = "Reproducir secuencia"
         }

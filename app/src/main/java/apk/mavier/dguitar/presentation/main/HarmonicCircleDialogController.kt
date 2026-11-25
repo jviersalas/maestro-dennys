@@ -39,7 +39,7 @@ class HarmonicCircleDialogController(
             .setNegativeButton("Cerrar", null)
             .show()
 
-        dialogBinding.seventhsButton.text = "Séptimas"
+        dialogBinding.seventhsButton.text = activity.getString(R.string.sevenths)
         dialogBinding.seventhsButton.setOnClickListener {
             val current = configProvider()
             onConfigChange(

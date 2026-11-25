@@ -17,7 +17,7 @@
             android:id="@+id/librarySubtitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Guitarra · 1 guardada"
+            android:text="@string/library_subtitle_placeholder"
             android:textColor="@color/text_secondary"
             android:textSize="12sp" />
 
@@ -32,7 +32,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="Toca una improvisación para cargarla. Mantén pulsado para renombrar o eliminar."
+            android:text="@string/library_hint"
             android:textColor="@color/text_muted"
             android:textSize="11sp" />
 
@@ -43,6 +43,6 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="12dp"
-            android:text="＋ Nueva improvisación" />
+            android:text="@string/new_improvisation" />
     </LinearLayout>
 </ScrollView>

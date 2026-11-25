@@ -22,6 +22,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -263,8 +264,9 @@ class ImprovisationActivity : AppCompatActivity() {
         binding.degreesButton.isSelected = showDegrees
         binding.degreesButton.contentDescription =
             if (showDegrees) "Ocultar grados del acorde" else "Mostrar grados del acorde"
-        binding.tempoButton.text = bpm.toString()
-        binding.tempoButton.contentDescription = "Cambiar tempo, $bpm BPM"
+        binding.tempoButton.text = getString(R.string.tempo_value, bpm)
+        binding.tempoButton.contentDescription =
+            getString(R.string.tempo_description_value, bpm)
         binding.progressionButton.contentDescription =
             "Editar ${currentProgression()?.name ?: "progresión"}, ${sections.size} secciones"
         binding.libraryButton.contentDescription =
@@ -276,9 +278,9 @@ class ImprovisationActivity : AppCompatActivity() {
         binding.playButton.contentDescription =
             if (playing) "Detener reproducción" else "Reproducir progresión"
         binding.barIndicator.text = when {
-            bars.isEmpty() -> "Sin compases"
-            bar != null -> "Compás ${bar.globalBar} / ${bars.size}"
-            else -> "Sin compás activo"
+            bars.isEmpty() -> getString(R.string.no_bars)
+            bar != null -> getString(R.string.bar_indicator, bar.globalBar, bars.size)
+            else -> getString(R.string.no_active_bar)
         }
         binding.barProgress.progress =
             if (playing && bar != null && ::playbackController.isInitialized) {
@@ -294,7 +296,8 @@ class ImprovisationActivity : AppCompatActivity() {
         binding.showScaleButton.visibility = View.VISIBLE
         binding.showChordButton.visibility = View.VISIBLE
         binding.colorsButton.visibility = View.VISIBLE
-        binding.scaleRootButton.text = "Tónica ${Pitch.name(scaleRootPc, useFlats)}"
+        binding.scaleRootButton.text =
+            getString(R.string.tonic_value, Pitch.name(scaleRootPc, useFlats))
         binding.scaleRootButton.contentDescription =
             "Tónica de la escala ${Pitch.name(scaleRootPc, useFlats)}"
         binding.scaleButton.text = scale.name
@@ -563,7 +566,7 @@ class ImprovisationActivity : AppCompatActivity() {
 
         if (section.chords.isEmpty()) {
             val hint = TextView(this).apply {
-                text = "Sin acordes"
+                text = getString(R.string.no_chords)
                 setTextColor(getColor(R.color.text_muted))
                 textSize = 12f
                 gravity = Gravity.CENTER_VERTICAL
@@ -635,7 +638,7 @@ class ImprovisationActivity : AppCompatActivity() {
             gravity = Gravity.CENTER
             setPadding(dp(14), dp(8), dp(14), dp(8))
             minHeight = dp(48)
-            background = getDrawable(R.drawable.bg_chip)
+            background = AppCompatResources.getDrawable(this@ImprovisationActivity, R.drawable.bg_chip)
             isClickable = true
             isFocusable = true
             isSelected = selected
@@ -940,7 +943,7 @@ class ImprovisationActivity : AppCompatActivity() {
     private fun showTempoDialog() {
         stopPlayback()
         val input = EditText(this).apply {
-            setText(bpm.toString())
+            setText(getString(R.string.tempo_value, bpm))
             setSelection(0, text.length)
             setSingleLine(true)
             inputType = InputType.TYPE_CLASS_NUMBER

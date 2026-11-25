@@ -75,14 +75,14 @@ class TunerActivity : AppCompatActivity() {
             isStable = false
             binding.inTuneBadge.visibility = View.INVISIBLE
             updateStringButtons()
-            binding.statusText.text = "Automático"
+            binding.statusText.text = getString(R.string.automatic)
         }
         binding.permissionButton.setOnClickListener { requestAudioPermission() }
 
         buildStringButtons()
         updateStringButtons()
         showIdleReading()
-        binding.statusText.text = "Escuchando…"
+        binding.statusText.text = getString(R.string.listening)
 
         if (hasAudioPermission()) {
             startListening()
@@ -121,9 +121,9 @@ class TunerActivity : AppCompatActivity() {
         if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             startListening()
         } else {
-            binding.statusText.text = "Permiso de micrófono necesario para afinar"
+            binding.statusText.text = getString(R.string.microphone_permission_needed)
             binding.permissionButton.visibility = View.VISIBLE
-            binding.permissionButton.text = "Activar micrófono"
+            binding.permissionButton.text = getString(R.string.enable_microphone)
         }
     }
 
@@ -146,11 +146,11 @@ class TunerActivity : AppCompatActivity() {
     private fun startListening() {
         binding.permissionButton.visibility = View.GONE
         binding.statusText.visibility = View.VISIBLE
-        binding.statusText.text = "Escuchando…"
+        binding.statusText.text = getString(R.string.listening)
         if (!detector.start()) {
-            binding.statusText.text = "No se pudo iniciar el micrófono"
+            binding.statusText.text = getString(R.string.microphone_start_failed)
             binding.permissionButton.visibility = View.VISIBLE
-            binding.permissionButton.text = "Reintentar"
+            binding.permissionButton.text = getString(R.string.retry)
         }
     }
 
@@ -182,10 +182,11 @@ class TunerActivity : AppCompatActivity() {
                         selectedStringIndex = index
                         binding.noteText.text = string.name(useFlats)
                         binding.noteText.setTextColor(getColor(R.color.text_primary))
-                        binding.hzText.text = "Hz —"
-                        binding.centsText.text = "— cents"
+                        binding.hzText.text = getString(R.string.hz_placeholder)
+                        binding.centsText.text = getString(R.string.cents_placeholder)
                         binding.centsText.setTextColor(getColor(R.color.text_secondary))
-                        binding.statusText.text = "Cuerda ${string.name(useFlats)}"
+                        binding.statusText.text =
+                            getString(R.string.string_status, string.name(useFlats))
                     }
                     autoStringIndex = null
                     lastTargetIndex = null
@@ -210,17 +211,17 @@ class TunerActivity : AppCompatActivity() {
         binding.autoButton.alpha = if (auto) 1f else 0.55f
         binding.autoButton.isSelected = auto
         binding.autoButton.contentDescription =
-            if (auto) "Modo automático activado" else "Volver a modo automático"
+            if (auto) getString(R.string.auto_mode_on) else getString(R.string.auto_mode_off)
     }
 
     private fun showIdleReading() {
         stableSince = 0L
         isStable = false
         binding.inTuneBadge.visibility = View.INVISIBLE
-        binding.noteText.text = "—"
+        binding.noteText.text = getString(R.string.note_placeholder)
         binding.noteText.setTextColor(getColor(R.color.text_primary))
-        binding.hzText.text = "Hz —"
-        binding.centsText.text = "— cents"
+        binding.hzText.text = getString(R.string.hz_placeholder)
+        binding.centsText.text = getString(R.string.cents_placeholder)
         binding.centsText.setTextColor(getColor(R.color.text_secondary))
         binding.gauge.updateReading(0f, false)
     }
@@ -270,7 +271,11 @@ class TunerActivity : AppCompatActivity() {
         binding.centsText.text = TunerMath.formatCents(cents)
         binding.centsText.setTextColor(if (inTune) getColor(R.color.success) else getColor(R.color.text_secondary))
         binding.inTuneBadge.visibility = if (isStable) View.VISIBLE else View.INVISIBLE
-        binding.statusText.text = if (selectedStringIndex == null) "Automático" else "Cuerda ${targetString.name(useFlats)}"
+        binding.statusText.text = if (selectedStringIndex == null) {
+            getString(R.string.automatic)
+        } else {
+            getString(R.string.string_status, targetString.name(useFlats))
+        }
         binding.gauge.updateReading(cents.toFloat(), true)
 
         if (selectedStringIndex == null) {
@@ -296,11 +301,15 @@ class TunerActivity : AppCompatActivity() {
         isStable = false
         binding.inTuneBadge.visibility = View.INVISIBLE
         binding.gauge.updateReading(0f, false)
-        binding.hzText.text = "Hz —"
-        binding.centsText.text = "— cents"
+        binding.hzText.text = getString(R.string.hz_placeholder)
+        binding.centsText.text = getString(R.string.cents_placeholder)
         binding.centsText.setTextColor(getColor(R.color.text_secondary))
         val manualNote = selectedStringIndex?.let { tuning.strings.getOrNull(it)?.name(useFlats) }
-        binding.statusText.text = if (manualNote != null) "Cuerda $manualNote · Esperando…" else "Escuchando…"
+        binding.statusText.text = if (manualNote != null) {
+            getString(R.string.waiting_status, manualNote)
+        } else {
+            getString(R.string.listening)
+        }
         binding.noteText.setTextColor(getColor(R.color.text_primary))
     }
 

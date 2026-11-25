@@ -30,10 +30,10 @@
                 android:layout_height="48dp"
                 android:background="@drawable/bg_chip"
                 android:clickable="true"
-                android:contentDescription="Volver"
+                android:contentDescription="@string/back"
                 android:focusable="true"
                 android:gravity="center"
-                android:text="‹"
+                android:text="@string/back_symbol"
                 android:textColor="@color/text_primary"
                 android:textSize="28sp" />
 
@@ -50,7 +50,7 @@
                     android:ellipsize="end"
                     android:fontFamily="sans-serif-medium"
                     android:maxLines="1"
-                    android:text="Improvisación"
+                    android:text="@string/improvisation"
                     android:textColor="@color/text_primary"
                     android:textSize="20sp" />
 
@@ -61,7 +61,7 @@
                     android:layout_marginTop="2dp"
                     android:ellipsize="end"
                     android:maxLines="1"
-                    android:text="Guitarra · Intro"
+                    android:text="@string/improv_subtitle_placeholder"
                     android:textColor="@color/text_secondary"
                     android:textSize="12sp" />
             </LinearLayout>
@@ -84,15 +84,15 @@
                 android:layout_height="48dp"
                 android:background="@drawable/bg_icon_button"
                 android:clickable="true"
-                android:contentDescription="Cambiar tempo, 80 BPM"
+                android:contentDescription="@string/tempo_description"
                 android:drawablePadding="1dp"
-                android:drawableTint="@color/icon_tint"
-                android:drawableTop="@drawable/ic_tempo"
+                app:drawableTint="@color/icon_tint"
+                app:drawableTopCompat="@drawable/ic_tempo"
                 android:focusable="true"
                 android:fontFamily="sans-serif-medium"
                 android:gravity="center"
                 android:includeFontPadding="false"
-                android:text="80"
+                android:text="@string/tempo_placeholder"
                 android:textColor="@color/text_primary"
                 android:textSize="10sp" />
 
@@ -102,7 +102,7 @@
                 android:layout_height="48dp"
                 android:layout_marginStart="4dp"
                 android:background="@drawable/bg_icon_button"
-                android:contentDescription="Activar metrónomo"
+                android:contentDescription="@string/metronome_enable"
                 android:padding="12dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_metronome"
@@ -114,7 +114,7 @@
                 android:layout_height="48dp"
                 android:layout_marginStart="4dp"
                 android:background="@drawable/bg_icon_button"
-                android:contentDescription="Mostrar colores de la escala"
+                android:contentDescription="@string/colors_show_scale"
                 android:padding="12dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_color"
@@ -126,7 +126,7 @@
                 android:layout_height="48dp"
                 android:layout_marginStart="4dp"
                 android:background="@drawable/bg_icon_button"
-                android:contentDescription="Mostrar grados del acorde"
+                android:contentDescription="@string/degrees_show_chord"
                 android:padding="12dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_degrees"
@@ -138,7 +138,7 @@
                 android:layout_height="48dp"
                 android:layout_marginStart="4dp"
                 android:background="@drawable/bg_play_button"
-                android:contentDescription="Reproducir progresión"
+                android:contentDescription="@string/play_progression"
                 android:padding="13dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_play_stop"
@@ -174,7 +174,7 @@
                 android:layout_marginEnd="8dp"
                 android:clickable="false"
                 android:focusable="false"
-                android:text="Compás 1 / 1" />
+                android:text="@string/bar_placeholder" />
 
             <TextView
                 android:id="@+id/libraryButton"
@@ -182,7 +182,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
-                android:text="Improvisaciones" />
+                android:text="@string/improvisations" />
 
             <TextView
                 android:id="@+id/progressionButton"
@@ -190,7 +190,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
-                android:text="Progresión" />
+                android:text="@string/progression" />
 
             <TextView
                 android:id="@+id/scaleRootButton"
@@ -198,7 +198,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
-                android:text="Tónica A" />
+                android:text="@string/tonic_placeholder" />
 
             <TextView
                 android:id="@+id/scaleButton"
@@ -206,7 +206,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
-                android:text="Pentatónica menor" />
+                android:text="@string/scale_placeholder" />
 
             <TextView
                 android:id="@+id/showScaleButton"
@@ -214,7 +214,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
-                android:text="Escala" />
+                android:text="@string/mode_scale" />
 
             <TextView
                 android:id="@+id/showChordButton"
@@ -222,7 +222,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
-                android:text="Acorde" />
+                android:text="@string/chord" />
         </LinearLayout>
     </HorizontalScrollView>
 
@@ -246,5 +246,5 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:contentDescription="Mástil para improvisar" />
+        android:contentDescription="@string/improv_fretboard_description" />
 </LinearLayout>
