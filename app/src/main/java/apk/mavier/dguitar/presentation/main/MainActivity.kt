@@ -45,6 +45,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var settingsRepository: SettingsRepository
     private lateinit var harmonicCircleUseCase: BuildHarmonicCircleUseCase
     private lateinit var harmonicCircleController: HarmonicCircleDialogController
+    private lateinit var chordGuideController: ChordGuideDialogController
     private var config = FretboardConfig()
 
     private lateinit var sequencePlayer: NoteSequencePlayer
@@ -68,6 +69,11 @@ class MainActivity : AppCompatActivity() {
             onConfigChange = { updateConfig(it) }
         )
         config = settingsRepository.load()
+
+        chordGuideController = ChordGuideDialogController(
+            activity = this,
+            configProvider = { config }
+        )
 
         synth = GuitarSynth()
 
@@ -114,6 +120,7 @@ class MainActivity : AppCompatActivity() {
         binding.scaleButton.setOnClickListener { showScaleOrChordMenu(it) }
         binding.sequenceButton.setOnClickListener { toggleSequence() }
         binding.strumButton.setOnClickListener { strumChord() }
+        binding.guideButton.setOnClickListener { chordGuideController.show() }
         binding.colorsButton.setOnClickListener { toggleColors() }
         binding.tunerButton.setOnClickListener {
             val intent = Intent(this, TunerActivity::class.java).apply {
@@ -213,6 +220,9 @@ class MainActivity : AppCompatActivity() {
         binding.strumButton.visibility =
             if (config.mode == ViewMode.CHORD) View.VISIBLE else View.GONE
         binding.strumButton.contentDescription = "Púa: tocar todas las notas del acorde"
+        binding.guideButton.visibility =
+            if (config.mode == ViewMode.CHORD) View.VISIBLE else View.GONE
+        binding.guideButton.contentDescription = "Abrir la guía del acorde"
         binding.sequenceButton.visibility = if (scaleMode) View.VISIBLE else View.GONE
         binding.chordsButton.visibility = if (scaleMode) View.VISIBLE else View.GONE
         binding.degreesButton.visibility = if (scaleMode) View.VISIBLE else View.GONE
@@ -353,6 +363,7 @@ class MainActivity : AppCompatActivity() {
 
             ViewMode.CHORD -> showLabeledMenu(anchor, Chords.all, { it.name }) { chord ->
                 updateConfig(config.copy(chord = chord))
+                binding.root.post { chordGuideController.show() }
             }
 
             ViewMode.FREE, ViewMode.IMPROV -> Unit

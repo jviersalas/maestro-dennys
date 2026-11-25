@@ -6,12 +6,23 @@ object Pitch {
 
     private val SHARP_NAMES = arrayOf("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
     private val FLAT_NAMES = arrayOf("C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B")
+    private val SOLFEGE_SHARP_NAMES = arrayOf(
+        "Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"
+    )
+    private val SOLFEGE_FLAT_NAMES = arrayOf(
+        "Do", "Reb", "Re", "Mib", "Mi", "Fa", "Solb", "Sol", "Lab", "La", "Sib", "Si"
+    )
 
     fun pitchClass(midi: Int): Int = ((midi % 12) + 12) % 12
 
     fun name(pitchClass: Int, useFlats: Boolean): String {
         val pc = ((pitchClass % 12) + 12) % 12
         return if (useFlats) FLAT_NAMES[pc] else SHARP_NAMES[pc]
+    }
+
+    fun solfegeName(pitchClass: Int, useFlats: Boolean): String {
+        val pc = ((pitchClass % 12) + 12) % 12
+        return if (useFlats) SOLFEGE_FLAT_NAMES[pc] else SOLFEGE_SHARP_NAMES[pc]
     }
 
     fun frequency(midi: Int): Double = 440.0 * 2.0.pow((midi - 69) / 12.0)

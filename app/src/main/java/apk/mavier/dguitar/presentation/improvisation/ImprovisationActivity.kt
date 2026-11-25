@@ -34,6 +34,7 @@ import apk.mavier.dguitar.databinding.DialogImprovLibraryBinding
 import apk.mavier.dguitar.databinding.DialogImprovisationProgressionBinding
 import apk.mavier.dguitar.databinding.ItemImprovProgressionBinding
 import apk.mavier.dguitar.domain.model.Chords
+import apk.mavier.dguitar.domain.model.ChordTheory
 import apk.mavier.dguitar.domain.model.FretboardConfig
 import apk.mavier.dguitar.domain.model.ImprovBar
 import apk.mavier.dguitar.domain.model.ImprovChord
@@ -48,6 +49,7 @@ import apk.mavier.dguitar.domain.model.ScaleMode
 import apk.mavier.dguitar.domain.model.Scales
 import apk.mavier.dguitar.domain.model.SequencePositions
 import apk.mavier.dguitar.domain.model.Tuning
+import apk.mavier.dguitar.domain.model.Tunings
 import apk.mavier.dguitar.domain.model.ViewMode
 import apk.mavier.dguitar.domain.repository.ImprovisationRepository
 import apk.mavier.dguitar.domain.repository.SettingsRepository
@@ -615,6 +617,15 @@ class ImprovisationActivity : AppCompatActivity() {
             improvShowChord = showChord
         )
         binding.improvFretboard.config = config
+        if (active != null) {
+            val cardTuning = if (isGuitar) tuning else Tunings.STANDARD
+            binding.improvChordDiagram.visibility = View.VISIBLE
+            binding.improvChordDiagram.setData(
+                ChordTheory.diagram(active.rootPc, active.quality, cardTuning, useFlats)
+            )
+        } else {
+            binding.improvChordDiagram.visibility = View.GONE
+        }
         binding.improvFretboard.contentDescription = buildString {
             append("Mástil de ")
             append(instrumentLabel(tuning.strings.size).lowercase())
