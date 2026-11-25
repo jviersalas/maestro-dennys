@@ -181,10 +181,10 @@ class TunerActivity : AppCompatActivity() {
                     } else {
                         selectedStringIndex = index
                         binding.noteText.text = string.name(useFlats)
-                        binding.noteText.setTextColor(0xFFF3EFFA.toInt())
+                        binding.noteText.setTextColor(getColor(R.color.text_primary))
                         binding.hzText.text = "Hz —"
                         binding.centsText.text = "— cents"
-                        binding.centsText.setTextColor(0xFFB7B0C4.toInt())
+                        binding.centsText.setTextColor(getColor(R.color.text_secondary))
                         binding.statusText.text = "Cuerda ${string.name(useFlats)}"
                     }
                     autoStringIndex = null
@@ -218,10 +218,10 @@ class TunerActivity : AppCompatActivity() {
         isStable = false
         binding.inTuneBadge.visibility = View.INVISIBLE
         binding.noteText.text = "—"
-        binding.noteText.setTextColor(0xFFF3EFFA.toInt())
+        binding.noteText.setTextColor(getColor(R.color.text_primary))
         binding.hzText.text = "Hz —"
         binding.centsText.text = "— cents"
-        binding.centsText.setTextColor(0xFFB7B0C4.toInt())
+        binding.centsText.setTextColor(getColor(R.color.text_secondary))
         binding.gauge.updateReading(0f, false)
     }
 
@@ -265,10 +265,10 @@ class TunerActivity : AppCompatActivity() {
         isStable = inTune && stableSince != 0L && now - stableSince >= STABLE_DURATION_MS
 
         binding.noteText.text = targetString.name(useFlats)
-        binding.noteText.setTextColor(if (isStable) 0xFF3DDC97.toInt() else 0xFFF3EFFA.toInt())
+        binding.noteText.setTextColor(if (isStable) getColor(R.color.success) else getColor(R.color.text_primary))
         binding.hzText.text = TunerMath.formatFrequency(smoothed)
         binding.centsText.text = TunerMath.formatCents(cents)
-        binding.centsText.setTextColor(if (inTune) 0xFF3DDC97.toInt() else 0xFFB7B0C4.toInt())
+        binding.centsText.setTextColor(if (inTune) getColor(R.color.success) else getColor(R.color.text_secondary))
         binding.inTuneBadge.visibility = if (isStable) View.VISIBLE else View.INVISIBLE
         binding.statusText.text = if (selectedStringIndex == null) "Automático" else "Cuerda ${targetString.name(useFlats)}"
         binding.gauge.updateReading(cents.toFloat(), true)
@@ -316,10 +316,10 @@ class TunerActivity : AppCompatActivity() {
         binding.gauge.updateReading(0f, false)
         binding.hzText.text = "Hz —"
         binding.centsText.text = "— cents"
-        binding.centsText.setTextColor(0xFFB7B0C4.toInt())
+        binding.centsText.setTextColor(getColor(R.color.text_secondary))
         val manualNote = selectedStringIndex?.let { tuning.strings.getOrNull(it)?.name(useFlats) }
         binding.statusText.text = if (manualNote != null) "Cuerda $manualNote · Esperando…" else "Escuchando…"
-        binding.noteText.setTextColor(0xFFF3EFFA.toInt())
+        binding.noteText.setTextColor(getColor(R.color.text_primary))
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()

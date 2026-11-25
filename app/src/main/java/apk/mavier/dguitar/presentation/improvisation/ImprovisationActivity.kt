@@ -52,6 +52,7 @@ import apk.mavier.dguitar.domain.repository.ImprovisationRepository
 import apk.mavier.dguitar.domain.repository.SettingsRepository
 import apk.mavier.dguitar.domain.usecase.GetImprovisationStepsUseCase
 import apk.mavier.dguitar.presentation.common.HandlerScheduler
+import apk.mavier.dguitar.presentation.common.instrumentLabel
 import apk.mavier.dguitar.presentation.theme.ChordColorProvider
 import apk.mavier.dguitar.presentation.ui.FretboardView
 import apk.mavier.dguitar.presentation.ui.applySystemBarInsets
@@ -251,7 +252,7 @@ class ImprovisationActivity : AppCompatActivity() {
         val bar = bars.getOrNull(activeBar)
         val active = bar?.step?.chord ?: steps().getOrNull(activeStep)?.chord
         binding.improvSubtitle.text = buildString {
-            append(instrumentLabel())
+            append(instrumentLabel(tuning.strings.size))
             append(" · ")
             append(currentProgression()?.name ?: "Improvisación")
             append(" · ")
@@ -381,7 +382,7 @@ class ImprovisationActivity : AppCompatActivity() {
         val dialogBinding = libraryDialogBinding ?: return
         val count = progressions.size
         dialogBinding.librarySubtitle.text = buildString {
-            append(instrumentLabel())
+            append(instrumentLabel(tuning.strings.size))
             append(" · ")
             append(count)
             append(if (count == 1) " guardada" else " guardadas")
@@ -615,7 +616,7 @@ class ImprovisationActivity : AppCompatActivity() {
         binding.improvFretboard.config = config
         binding.improvFretboard.contentDescription = buildString {
             append("Mástil de ")
-            append(instrumentLabel().lowercase())
+            append(instrumentLabel(tuning.strings.size).lowercase())
             append(". Escala ")
             append(scale.name)
             append(" en ")
@@ -1222,12 +1223,6 @@ class ImprovisationActivity : AppCompatActivity() {
 
     private fun syncScaleRootFromProgression() {
         if (scaleRootAuto) scaleRootPc = firstChordRoot()
-    }
-
-    private fun instrumentLabel(): String = when (tuning.strings.size) {
-        4 -> "Bajo 4"
-        5 -> "Bajo 5"
-        else -> "Guitarra"
     }
 
     private fun dp(value: Int): Int =

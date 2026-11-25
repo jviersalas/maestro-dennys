@@ -1,12 +1,10 @@
 package apk.mavier.dguitar.presentation.onboarding
 
-import apk.mavier.dguitar.R
-
 import android.content.Intent
 import android.os.Bundle
-import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import apk.mavier.dguitar.databinding.ActivityInstrumentBinding
 import apk.mavier.dguitar.domain.di.DependencyProvider
 import apk.mavier.dguitar.domain.model.Tuning
 import apk.mavier.dguitar.domain.model.Tunings
@@ -16,15 +14,17 @@ import apk.mavier.dguitar.presentation.main.MainActivity
 
 class InstrumentActivity : AppCompatActivity() {
 
+    private lateinit var binding: ActivityInstrumentBinding
     private lateinit var settingsRepository: SettingsRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_instrument)
+        binding = ActivityInstrumentBinding.inflate(layoutInflater)
+        setContentView(binding.root)
         settingsRepository = (application as DependencyProvider).settingsRepository
 
-        findViewById<View>(R.id.guitarCard).setOnClickListener { chooseGuitar() }
-        findViewById<View>(R.id.bassCard).setOnClickListener { chooseBass() }
+        binding.guitarCard.setOnClickListener { chooseGuitar() }
+        binding.bassCard.setOnClickListener { chooseBass() }
     }
 
     private fun chooseGuitar() {

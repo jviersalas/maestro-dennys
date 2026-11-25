@@ -33,6 +33,7 @@ import apk.mavier.dguitar.domain.model.Tunings
 import apk.mavier.dguitar.domain.model.ViewMode
 import apk.mavier.dguitar.domain.repository.SettingsRepository
 import apk.mavier.dguitar.domain.usecase.BuildHarmonicCircleUseCase
+import apk.mavier.dguitar.presentation.common.instrumentLabel
 import apk.mavier.dguitar.presentation.common.HandlerScheduler
 import apk.mavier.dguitar.presentation.common.NoteSequencePlayer
 import apk.mavier.dguitar.presentation.common.NoteStep
@@ -166,10 +167,10 @@ class MainActivity : AppCompatActivity() {
             ViewMode.IMPROV -> "Improvisación"
         }
         binding.subtitleText.text = when (config.mode) {
-            ViewMode.SCALE -> "${instrumentLabel()} · ${config.scale.formula}"
-            ViewMode.CHORD -> "${instrumentLabel()} · ${chordNotesText()}"
-            ViewMode.FREE -> "${instrumentLabel()} · Explora el mástil"
-            ViewMode.IMPROV -> "${instrumentLabel()} · Progresión"
+            ViewMode.SCALE -> "${instrumentLabel(config.tuning.strings.size)} · ${config.scale.formula}"
+            ViewMode.CHORD -> "${instrumentLabel(config.tuning.strings.size)} · ${chordNotesText()}"
+            ViewMode.FREE -> "${instrumentLabel(config.tuning.strings.size)} · Explora el mástil"
+            ViewMode.IMPROV -> "${instrumentLabel(config.tuning.strings.size)} · Progresión"
         }
         val instrumentText = if (isBass()) "bajo" else "guitarra"
         binding.fretboard.contentDescription = when (config.mode) {
@@ -266,7 +267,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showSettingsMenu(anchor: View) {
         val popup = PopupMenu(this, anchor)
-        popup.menu.add(Menu.NONE, 0, 0, "Instrumento: ${instrumentLabel()}")
+        popup.menu.add(Menu.NONE, 0, 0, "Instrumento: ${instrumentLabel(config.tuning.strings.size)}")
         popup.menu.add(Menu.NONE, 1, 1, "Afinación: ${config.tuning.name}")
         popup.menu.add(
             Menu.NONE, 2, 2,
@@ -305,12 +306,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun isBass(): Boolean = config.tuning.strings.size < 6
-
-    private fun instrumentLabel(): String = when (config.tuning.strings.size) {
-        4 -> "Bajo 4"
-        5 -> "Bajo 5"
-        else -> "Guitarra"
-    }
 
     private fun showModeMenu(anchor: View) {
         val popup = PopupMenu(this, anchor)
