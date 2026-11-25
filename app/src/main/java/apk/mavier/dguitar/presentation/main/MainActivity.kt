@@ -565,16 +565,28 @@ class MainActivity : AppCompatActivity() {
     private fun startSequence() {
         stopSequence()
 
-        val notes = config.scale.fullRangeSequence(
-            config.rootPc,
-            config.tuning,
-            FretboardView.FRET_COUNT
-        )
-        if (notes.isEmpty()) return
-
-        val positions = notes.map {
-            SequencePositions.freePosition(it, config.tuning, FretboardView.FRET_COUNT)
+        val occurrence = if (config.selectedPattern != null) {
+            binding.fretboard.currentSequenceOccurrence()
+        } else {
+            null
         }
+        val positions = if (occurrence != null) {
+            config.scale.segmentSequence(
+                config.rootPc,
+                config.tuning,
+                occurrence,
+                FretboardView.FRET_COUNT
+            )
+        } else {
+            config.scale.octaveSequence(
+                config.rootPc,
+                config.tuning,
+                FretboardView.FRET_COUNT
+            ).mapNotNull {
+                SequencePositions.freePosition(it, config.tuning, FretboardView.FRET_COUNT)
+            }
+        }
+        if (positions.isEmpty()) return
 
         sequencePlaying = true
         binding.sequenceButton.text = "Detener"
@@ -591,17 +603,15 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 val position = positions[index]
-                if (position != null) {
-                    val playedMidi = position.midi(config.tuning)
-                    synth.pluck(position.stringIndex, playedMidi)
-                    binding.fretboard.highlightNote(
-                        position.stringIndex,
-                        position.fret,
-                        reveal = true
-                    )
-                    binding.sequenceButton.text =
-                        "Detener · ${Pitch.name(Pitch.pitchClass(playedMidi), config.useFlats)}"
-                }
+                val playedMidi = position.midi(config.tuning)
+                synth.pluck(position.stringIndex, playedMidi)
+                binding.fretboard.highlightNote(
+                    position.stringIndex,
+                    position.fret,
+                    reveal = true
+                )
+                binding.sequenceButton.text =
+                    "Detener · ${Pitch.name(Pitch.pitchClass(playedMidi), config.useFlats)}"
                 index++
                 sequenceHandler.postDelayed(this, SEQUENCE_STEP_MS)
             }

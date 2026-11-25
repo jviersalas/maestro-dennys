@@ -91,6 +91,41 @@ class SequencePositionsTest {
     }
 
     @Test
+    fun lowestRootMovesDToTheAStringFifthFret() {
+        val position = SequencePositions.lowestRootPosition(2, tuning, 22)
+        assertNotNull(position)
+        assertEquals(4, position!!.stringIndex)
+        assertEquals(5, position.fret)
+    }
+
+    @Test
+    fun bassLowestRootMovesDToTheAStringFifthFret() {
+        val position = SequencePositions.lowestRootPosition(2, Tunings.BASS_4, 22)
+        assertNotNull(position)
+        assertEquals(2, position!!.stringIndex)
+        assertEquals(5, position.fret)
+    }
+
+    @Test
+    fun gMajorNotesUseTheClosestThickStrings() {
+        val root = SequencePositions.bestPositionForMidi(43, tuning, 22)!!
+        assertEquals(5, root.stringIndex)
+        assertEquals(3, root.fret)
+
+        val third = SequencePositions.bestPositionForMidi(47, tuning, 22)!!
+        assertEquals(4, third.stringIndex)
+        assertEquals(2, third.fret)
+
+        val fifth = SequencePositions.bestPositionForMidi(50, tuning, 22)!!
+        assertEquals(4, fifth.stringIndex)
+        assertEquals(5, fifth.fret)
+
+        val octave = SequencePositions.bestPositionForMidi(55, tuning, 22)!!
+        assertEquals(3, octave.stringIndex)
+        assertEquals(5, octave.fret)
+    }
+
+    @Test
     fun bassLowestRootsFollowTheSamePattern() {
         val g = SequencePositions.lowestRootPosition(7, Tunings.BASS_4, 22)
         assertNotNull(g)
@@ -104,20 +139,30 @@ class SequencePositionsTest {
     }
 
     @Test
-    fun fullScaleSequenceStartsAndEndsOnTheLowestRoot() {
-        val notes = Scales.MAJOR.fullRangeSequence(0, tuning, 22)
-        assertTrue(notes.size > 10)
-        assertEquals(48, notes.first())
-        assertEquals(48, notes.last())
-        val peakIndex = notes.indexOf(notes.maxOrNull()!!)
-        assertTrue(peakIndex in 1 until notes.lastIndex)
+    fun octaveSequenceGoesUpAndDownExactlyOneOctave() {
+        val notes = Scales.MAJOR.octaveSequence(0, tuning, 22)
+        assertEquals(
+            listOf(48, 50, 52, 53, 55, 57, 59, 60, 59, 57, 55, 53, 52, 50, 48),
+            notes
+        )
     }
 
     @Test
-    fun bassFullScaleSequenceStartsAndEndsOnTheLowestRoot() {
-        val notes = Scales.MAJOR.fullRangeSequence(0, Tunings.BASS_4, 22)
-        assertTrue(notes.size > 8)
+    fun bassOctaveSequenceGoesUpAndDownOneOctave() {
+        val notes = Scales.MAJOR.octaveSequence(0, Tunings.BASS_4, 22)
+        assertEquals(15, notes.size)
         assertEquals(36, notes.first())
         assertEquals(36, notes.last())
+    }
+
+    @Test
+    fun segmentSequenceStaysInsideTheSelectedSegment() {
+        val occurrence = CagedPatterns.occurrencesFor(1).first { it.startFret == 5 }
+        val positions = Scales.MAJOR.segmentSequence(0, tuning, occurrence, 22)
+        assertEquals(15, positions.size)
+        assertTrue(positions.all { it.fret in occurrence.startFret..occurrence.endFret })
+        assertEquals(5, positions.first().stringIndex)
+        assertEquals(8, positions.first().fret)
+        assertEquals(positions.first(), positions.last())
     }
 }

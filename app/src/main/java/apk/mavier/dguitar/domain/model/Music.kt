@@ -94,27 +94,56 @@ data class ScaleMode(
     val exampleSequence: List<Int>
         get() = intervals + intervals.asReversed().drop(1)
 
-    fun fullRangeSequence(rootPc: Int, tuning: Tuning, maxFret: Int): List<Int> {
+    fun octaveSequence(rootPc: Int, tuning: Tuning, maxFret: Int): List<Int> {
         val lowest = SequencePositions.lowestRootPosition(rootPc, tuning, maxFret)
             ?: return emptyList()
         val lowMidi = lowest.midi(tuning)
+        val highMidi = lowMidi + 12
         val scalePcs = pitchClasses(rootPc)
-        var highMidi = lowMidi
-        for (stringIndex in tuning.strings.indices) {
-            val openMidi = tuning.strings[stringIndex].openMidi
-            for (fret in 0..maxFret) {
-                val midi = openMidi + fret
-                if (midi > highMidi && Pitch.pitchClass(midi) in scalePcs) {
-                    highMidi = midi
-                }
-            }
-        }
-        if (highMidi <= lowMidi) return listOf(lowMidi)
-
-        val ascending = ArrayList<Int>()
+        val ascending = ArrayList<Int>(13)
         for (midi in lowMidi..highMidi) {
             if (Pitch.pitchClass(midi) in scalePcs) ascending.add(midi)
         }
+        return ascending + ascending.asReversed().drop(1)
+    }
+
+    fun segmentSequence(
+        rootPc: Int,
+        tuning: Tuning,
+        occurrence: CagedPatternOccurrence,
+        maxFret: Int
+    ): List<SequencePositions.Position> {
+        val lowestRoot = SequencePositions.lowestRootPositionInOccurrence(
+            rootPc,
+            tuning,
+            occurrence,
+            maxFret
+        ) ?: return emptyList()
+        val lowMidi = lowestRoot.midi(tuning)
+        val highMidi = lowMidi + 12
+        val scalePcs = pitchClasses(rootPc)
+        val endFret = minOf(occurrence.endFret, maxFret)
+        val byMidi = sortedMapOf<Int, SequencePositions.Position>()
+
+        for (stringIndex in tuning.strings.indices) {
+            val openMidi = tuning.strings[stringIndex].openMidi
+            for (fret in occurrence.startFret..endFret) {
+                val midi = openMidi + fret
+                if (midi !in lowMidi..highMidi) continue
+                if (Pitch.pitchClass(midi) !in scalePcs) continue
+                val candidate = SequencePositions.Position(stringIndex, fret)
+                val current = byMidi[midi]
+                if (current == null ||
+                    stringIndex > current.stringIndex ||
+                    (stringIndex == current.stringIndex && fret < current.fret)
+                ) {
+                    byMidi[midi] = candidate
+                }
+            }
+        }
+
+        val ascending = byMidi.values.toList()
+        if (ascending.isEmpty()) return emptyList()
         return ascending + ascending.asReversed().drop(1)
     }
 }

@@ -951,27 +951,13 @@ class ImprovisationActivity : AppCompatActivity() {
         val rootString = tuning.strings.getOrNull(rootPosition.first) ?: return emptyList()
         val rootMidi = rootString.openMidi + rootPosition.second
         val limit = maxOf(hits, 8).coerceAtMost(16)
-        val midis = Improvisation.ascendingChordMidi(
+        return Improvisation.ascendingChordPositions(
             rootMidi,
             chord.quality.intervals,
-            limit
-        )
-        val result = ArrayList<Pair<Int, Int>>(midis.size)
-        for (midi in midis) {
-            val position = if (result.isEmpty()) {
-                rootPosition
-            } else {
-                val sameStringFret = midi - rootString.openMidi
-                if (sameStringFret in 0..FretboardView.FRET_COUNT) {
-                    rootPosition.first to sameStringFret
-                } else {
-                    SequencePositions.freePosition(midi, tuning, FretboardView.FRET_COUNT)
-                        ?.let { it.stringIndex to it.fret }
-                }
-            } ?: continue
-            if (result.isEmpty() || position != result.last()) result.add(position)
-        }
-        return result
+            limit,
+            tuning,
+            FretboardView.FRET_COUNT
+        ).map { it.stringIndex to it.fret }
     }
 
     private fun playGuideNote(chord: ImprovChord) {

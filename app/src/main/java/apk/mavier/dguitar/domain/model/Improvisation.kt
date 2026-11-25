@@ -95,6 +95,17 @@ object Improvisation {
     fun barAt(sections: List<ImprovSection>, index: Int): ImprovBar? =
         bars(sections).getOrNull(index)
 
+    fun ascendingChordPositions(
+        rootMidi: Int,
+        intervals: List<Int>,
+        limit: Int,
+        tuning: Tuning,
+        maxFret: Int
+    ): List<SequencePositions.Position> =
+        ascendingChordMidi(rootMidi, intervals, limit).mapNotNull { midi ->
+            SequencePositions.bestPositionForMidi(midi, tuning, maxFret)
+        }
+
     fun ascendingChordMidi(
         rootMidi: Int,
         intervals: List<Int>,
