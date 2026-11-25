@@ -40,6 +40,7 @@ import apk.mavier.dguitar.domain.model.ImprovInstrument
 import apk.mavier.dguitar.domain.model.ImprovProgression
 import apk.mavier.dguitar.domain.model.ImprovSection
 import apk.mavier.dguitar.domain.model.ImprovStep
+import apk.mavier.dguitar.domain.model.ImprovTimeline
 import apk.mavier.dguitar.domain.model.Improvisation
 import apk.mavier.dguitar.domain.model.Pitch
 import apk.mavier.dguitar.domain.model.ScaleMode
@@ -84,6 +85,7 @@ class ImprovisationActivity : AppCompatActivity() {
     private var scaleRootAuto = true
     private var scale: ScaleMode = Scales.PENTATONIC_MINOR
     private var barStartedAt = 0L
+    private var timelineCache: ImprovTimeline? = null
 
     private val handler = Handler(Looper.getMainLooper())
     private var playbackRunnable: Runnable? = null
@@ -418,6 +420,7 @@ class ImprovisationActivity : AppCompatActivity() {
         currentProgressionId = next.id
         sections = next.sections.toMutableList()
         if (sections.isEmpty()) sections.add(ImprovSection("Intro"))
+        invalidateTimeline()
         selectedSection = 0
         setActiveStep(if (sections.first().chords.isNotEmpty()) 0 else -1)
         saveSections()
@@ -436,6 +439,7 @@ class ImprovisationActivity : AppCompatActivity() {
         progressions.add(progression)
         currentProgressionId = progression.id
         sections = progression.sections.toMutableList()
+        invalidateTimeline()
         selectedSection = 0
         setActiveStep(-1)
         saveSections()
@@ -487,6 +491,7 @@ class ImprovisationActivity : AppCompatActivity() {
             currentProgressionId = next.id
             sections = next.sections.toMutableList()
             if (sections.isEmpty()) sections.add(ImprovSection("Intro"))
+            invalidateTimeline()
             selectedSection = 0
             setActiveStep(if (sections.first().chords.isNotEmpty()) 0 else -1)
             saveSections()
@@ -660,6 +665,7 @@ class ImprovisationActivity : AppCompatActivity() {
         stopPlayback()
         showNameDialog("Nueva sección", "Sección ${sections.size + 1}", "Añadir") { name ->
             sections.add(ImprovSection(name))
+            invalidateTimeline()
             selectedSection = sections.lastIndex
             setActiveStep(-1)
             saveSections()
@@ -673,6 +679,7 @@ class ImprovisationActivity : AppCompatActivity() {
         showNameDialog("Renombrar sección", section.name, "Guardar") { name ->
             if (index !in sections.indices) return@showNameDialog
             sections[index] = sections[index].copy(name = name)
+            invalidateTimeline()
             saveSections()
             renderAll()
         }
@@ -685,6 +692,7 @@ class ImprovisationActivity : AppCompatActivity() {
         }
         stopPlayback()
         sections.removeAt(index)
+        invalidateTimeline()
         selectedSection = selectedSection.coerceIn(0, sections.lastIndex)
         setActiveStep(
             if (sections[selectedSection].chords.isEmpty()) {
@@ -723,6 +731,7 @@ class ImprovisationActivity : AppCompatActivity() {
             val current = sections[selectedSection]
             val chords = current.chords + chord
             sections[selectedSection] = current.copy(chords = chords)
+            invalidateTimeline()
             setActiveStep(firstStepOfSection(selectedSection) + chords.lastIndex)
             saveSections()
             renderAll()
@@ -742,6 +751,7 @@ class ImprovisationActivity : AppCompatActivity() {
             val chords = current.chords.toMutableList()
             chords[chordIndex] = updated
             sections[sectionIndex] = current.copy(chords = chords)
+            invalidateTimeline()
             selectedSection = sectionIndex
             setActiveStep(firstStepOfSection(sectionIndex) + chordIndex)
             saveSections()
@@ -757,6 +767,7 @@ class ImprovisationActivity : AppCompatActivity() {
         val chords = section.chords.toMutableList()
         chords.removeAt(chordIndex)
         sections[sectionIndex] = section.copy(chords = chords)
+        invalidateTimeline()
         selectedSection = sectionIndex
         setActiveStep(
             if (chords.isEmpty()) {
@@ -1208,22 +1219,27 @@ class ImprovisationActivity : AppCompatActivity() {
     private fun stepDurationMs(step: ImprovStep): Long =
         barDurationMs() * step.chord.normalizedBarsPerChord
 
-    private fun bars(): List<ImprovBar> = stepsUseCase.bars(sections)
+    private fun bars(): List<ImprovBar> = timeline().bars
 
-    private fun steps(): List<ImprovStep> = stepsUseCase(sections)
+    private fun steps(): List<ImprovStep> = timeline().steps
+
+    private fun timeline(): ImprovTimeline {
+        val cached = timelineCache
+        if (cached != null) return cached
+        val built = stepsUseCase.timeline(sections)
+        timelineCache = built
+        return built
+    }
+
+    private fun invalidateTimeline() {
+        timelineCache = null
+    }
 
     private fun firstStepOfSection(index: Int): Int =
-        sections.take(index).sumOf { it.chords.size }
+        timeline().firstStepOfSection(index)
 
-    private fun firstBarOfStep(stepIndex: Int): Int {
-        if (stepIndex < 0) return -1
-        var offset = 0
-        steps().forEachIndexed { index, step ->
-            if (index == stepIndex) return offset
-            offset += step.chord.normalizedBarsPerChord
-        }
-        return -1
-    }
+    private fun firstBarOfStep(stepIndex: Int): Int =
+        timeline().firstBarOfStep(stepIndex)
 
     private fun firstChordRoot(): Int =
         sections.firstOrNull()?.chords?.firstOrNull()?.rootPc ?: 0
