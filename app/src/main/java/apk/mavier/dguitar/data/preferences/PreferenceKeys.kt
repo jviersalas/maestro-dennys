@@ -20,7 +20,10 @@ internal object PreferenceKeys {
     const val LEGACY_OVERLAY_QUALITY = "overlay_quality"
 
     const val PATTERN = "pattern"
+    const val PATTERN_START_FRET = "pattern_start_fret"
     const val CHORD_PATTERN = "chord_pattern"
+    const val CHORD_PATTERN_START_FRET = "chord_pattern_start_fret"
+    const val SOUND_PROFILE = "sound_profile"
 
     const val IMPROV_BPM = "improv_bpm"
     const val IMPROV_SECTIONS = "improv_sections"

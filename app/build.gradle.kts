@@ -57,6 +57,10 @@ android {
     buildFeatures {
         viewBinding = true
     }
+
+    androidResources {
+        noCompress.add("sf2")
+    }
 }
 
 androidComponents {

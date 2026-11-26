@@ -5,7 +5,11 @@ import apk.mavier.dguitar.di.AppContainer
 import apk.mavier.dguitar.domain.di.DependencyProvider
 import apk.mavier.dguitar.domain.repository.ImprovisationRepository
 import apk.mavier.dguitar.domain.repository.SettingsRepository
+import apk.mavier.dguitar.domain.repository.SoundFontRepository
+import apk.mavier.dguitar.domain.usecase.BuildGuidedProgressionUseCase
 import apk.mavier.dguitar.domain.usecase.BuildHarmonicCircleUseCase
+import apk.mavier.dguitar.domain.usecase.BuildCircleOfFifthsUseCase
+import apk.mavier.dguitar.domain.usecase.BuildModulationUseCase
 import apk.mavier.dguitar.domain.usecase.GetImprovisationStepsUseCase
 
 class DGuitarApp : Application(), DependencyProvider {
@@ -21,8 +25,20 @@ class DGuitarApp : Application(), DependencyProvider {
     override val harmonicCircleUseCase: BuildHarmonicCircleUseCase
         get() = container.harmonicCircleUseCase
 
+    override val circleOfFifthsUseCase: BuildCircleOfFifthsUseCase
+        get() = container.circleOfFifthsUseCase
+
+    override val modulationUseCase: BuildModulationUseCase
+        get() = container.modulationUseCase
+
     override val improvisationStepsUseCase: GetImprovisationStepsUseCase
         get() = container.improvisationStepsUseCase
+
+    override val guidedProgressionUseCase: BuildGuidedProgressionUseCase
+        get() = container.guidedProgressionUseCase
+
+    override val soundFontRepository: SoundFontRepository
+        get() = container.soundFontRepository
 
     override fun onCreate() {
         super.onCreate()

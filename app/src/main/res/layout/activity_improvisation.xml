@@ -219,6 +219,14 @@
                 android:text="@string/progression" />
 
             <TextView
+                android:id="@+id/guidedButton"
+                style="@style/ChipButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="@string/guided_progressions" />
+
+            <TextView
                 android:id="@+id/scaleRootButton"
                 style="@style/ChipButton"
                 android:layout_width="wrap_content"

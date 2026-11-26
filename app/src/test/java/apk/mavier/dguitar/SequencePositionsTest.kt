@@ -16,10 +16,10 @@ class SequencePositionsTest {
     private val pentatonicSequence = listOf(60, 62, 64, 67, 69, 67, 64, 62, 60)
 
     @Test
-    fun patternFourUsesTheOccurrenceThatFitsTheOctave() {
+    fun patternOneUsesTheOccurrenceThatFitsTheOctave() {
         val occurrence = SequencePositions.bestOccurrence(
             pentatonicSequence,
-            CagedPatterns.occurrencesFor(4),
+            CagedPatterns.occurrencesFor(1),
             tuning
         )
         assertNotNull(occurrence)
@@ -28,10 +28,10 @@ class SequencePositionsTest {
     }
 
     @Test
-    fun patternOneUsesTheLowerPosition() {
+    fun patternThreeUsesTheLowerPosition() {
         val occurrence = SequencePositions.bestOccurrence(
             pentatonicSequence,
-            CagedPatterns.occurrencesFor(1),
+            CagedPatterns.occurrencesFor(3),
             tuning
         )
         assertNotNull(occurrence)
@@ -58,7 +58,7 @@ class SequencePositionsTest {
 
     @Test
     fun positionInOccurrenceKeepsEveryNoteInsideTheWindow() {
-        val occurrence = CagedPatterns.occurrencesFor(4).first { it.startFret == 12 }
+        val occurrence = CagedPatterns.occurrencesFor(1).first { it.startFret == 12 }
         for (midi in pentatonicSequence) {
             val position = SequencePositions.positionInOccurrence(midi, occurrence, tuning)
             assertNotNull(position)
@@ -157,7 +157,7 @@ class SequencePositionsTest {
 
     @Test
     fun segmentSequenceStaysInsideTheSelectedSegment() {
-        val occurrence = CagedPatterns.occurrencesFor(1).first { it.startFret == 5 }
+        val occurrence = CagedPatterns.occurrencesFor(3).first { it.startFret == 5 }
         val positions = Scales.MAJOR.segmentSequence(0, tuning, occurrence, 22)
         assertEquals(15, positions.size)
         assertTrue(positions.all { it.fret in occurrence.startFret..occurrence.endFret })

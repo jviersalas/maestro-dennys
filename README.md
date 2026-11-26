@@ -25,20 +25,30 @@
 
 ## Novedades
 
-- **Onboarding una sola vez**: la primera vez eliges guitarra o bajo; en los
-  siguientes arranques la app abre directo en el mástil.
+- **Onboarding una sola vez**: la primera vez eliges guitarra o bajo; después
+  entras al **panel de módulos** para elegir Acordes, Escalas, Progresión,
+  Improvisación o Afinación, y puedes volver a él desde cualquier módulo.
+- **Módulos de aprendizaje**: panel con portadas propias, acceso directo a cada
+  sección y botón para cambiar de instrumento sin reiniciar el recorrido.
 - **Improvisación más completa**: varias progresiones guardadas por instrumento,
   metrónomo con acento, capas independientes de escala/acorde/colores/grados,
   tónica y escala configurables, y la posibilidad de tocar el mástil para
   escuchar cada nota, también en guitarra.
+- **Progresiones guiadas**: catálogo de progresiones por género (pop, rock,
+  jazz, blues, andaluza, menor y clásica) con escala sugerida, transposición
+  instantánea a cualquier tonalidad y botón **Practicar** que abre el mástil con
+  metrónomo y la capa de escala ya configurados.
+- **Sonido SF2**: sampler SoundFont 2 propio con dos bancos incluidos
+  (guitarra acústica y bajo YR), selector en Ajustes, importación de otros
+  `.sf2` y vuelta al sintetizador Karplus–Strong.
 - **Afinador mejorado**: modo automático con detección de cuerda, modo manual,
   indicador **EN TONO** y manejo del permiso de micrófono.
 - **Círculo armónico**: tríadas o séptimas, selección de grados y cambio de
   calidad (diatónica, mayor o menor) manteniendo pulsado.
 - **Rendimiento**: el mástil cachea geometría, voicings y modelo de dibujo para
   no recalcular por frame; la improvisación reutiliza su línea de tiempo.
-- **Release optimizado**: R8 activo; el APK de release pesa ~1.9 MB frente a
-  ~9 MB del debug.
+- **Release optimizado**: R8 activo; el APK de release pesa ~7.1 MB frente a
+  ~13 MB del debug.
 - **Calidad**: tests unitarios del dominio y GitHub Actions para tests, lint y
   build.
 - **Textos centralizados** en `strings.xml`, listos para futuras traducciones.
@@ -54,9 +64,11 @@
 | **Escalas** | 51 escalas y modos |
 | **Acordes** | 24 tipos de acorde |
 | **Improvisación** | 40–220 BPM · progresiones guardadas · metrónomo |
+| **Progresiones guiadas** | 13 progresiones por género · transposición libre |
+| **Sonido** | 2 SF2 incluidos (guitarra/bajo) + importación |
 | **Tests** | Dominio, audio, geometría del mástil y playback |
 | **CI** | GitHub Actions (tests + lint + build) |
-| **Release** | R8 activo (~1.9 MB) |
+| **Release** | R8 activo (~7.1 MB) |
 | **Idioma** | Español |
 
 ## Contenido
@@ -65,12 +77,14 @@
 2. [Escalas](#escalas)
 3. [Acordes](#acordes)
 4. [Armonización](#armonización)
-5. [Improvisación](#improvisación)
-6. [Otras herramientas](#otras-herramientas)
-7. [Calidad y pruebas](#calidad-y-pruebas)
-8. [Cómo ejecutar](#cómo-ejecutar)
-9. [Estructura del proyecto](#estructura-del-proyecto)
-10. [Sobre Dennys Ruiz](#sobre-dennys-ruiz)
+5. [Progresiones guiadas](#progresiones-guiadas)
+6. [Improvisación](#improvisación)
+7. [Sonido](#sonido)
+8. [Otras herramientas](#otras-herramientas)
+9. [Calidad y pruebas](#calidad-y-pruebas)
+10. [Cómo ejecutar](#cómo-ejecutar)
+11. [Estructura del proyecto](#estructura-del-proyecto)
+12. [Sobre Dennys Ruiz](#sobre-dennys-ruiz)
 
 ---
 
@@ -162,6 +176,29 @@ En la app puedes:
 
 ---
 
+## Progresiones guiadas
+
+El paso natural después de armonizar: un catálogo de progresiones comunes con
+su escala sugerida para improvisar encima. Cada una se transpone al instante a
+cualquier tonalidad y se puede practicar directamente.
+
+| Progresión | Género | Escala sugerida |
+|---|---|---|
+| I–V–vi–IV · vi–IV–I–V | Pop | Mayor |
+| I–IV–V | Rock | Mayor |
+| I–vi–IV–V · I–IV–V–vi (cadencia rota) | Balada | Mayor |
+| ii–V–I · I–vi–ii–V | Jazz | Mayor |
+| iiø–V–i | Jazz menor | Menor armónica |
+| 12-bar blues | Blues | Blues menor |
+| i–VII–VI–V | Andaluza | Frigia dominante |
+| i–VI–III–VII · i–iv–v | Menor | Menor natural |
+| Canon I–V–vi–iii–IV–I–IV–V | Clásica | Mayor |
+
+Al tocar **Practicar**, la progresión se carga en el módulo de improvisación con
+el mástil, el metrónomo y la capa de escala activos, lista para sonar.
+
+---
+
 ## Improvisación
 
 Un laboratorio para crear progresiones por secciones y practicar sobre ellas:
@@ -185,15 +222,35 @@ Un laboratorio para crear progresiones por secciones y practicar sobre ellas:
 
 ---
 
+## Sonido
+
+La guitarra y el bajo pueden sonar con **samples reales** de SoundFont 2 además
+del sintetizador Karplus–Strong. El motor es un sampler propio en Kotlin: lee el
+SF2, selecciona la zona por nota, aplica transposición, loop y envolventes, y
+mezcla las voces en el mismo `AudioTrack` de la app. Si el SF2 no carga, el
+sonido cae automáticamente al sintetizador.
+
+- **Incluidos**:
+  - `Guitar Acoustic` (guitarra acústica, dominio público).
+  - `Bass YR` (bajo eléctrico).
+- **Selector**: Ajustes → **Sonido**, con el sintético, los SF2 incluidos para
+  el instrumento actual y los SF2 importados.
+- **Importación**: desde el mismo diálogo se puede cargar cualquier `.sf2` del
+  dispositivo; se copia a la carpeta privada de la app y queda disponible para
+  las próximas sesiones.
+- Al cambiar de guitarra a bajo (o al revés), la app elige el banco incluido
+  adecuado para el instrumento si el sonido actual no corresponde.
+
+---
+
 ## Otras herramientas
 
 - **Afinador cromático** con detección de tono en tiempo real:
   - modo **automático** que elige la cuerda más cercana con histéresis,
   - modo **manual** tocando una cuerda de la fila,
   - lectura de Hz y cents, tolerancia de ±5 cents e indicador **EN TONO**.
-- **Modo libre** para explorar el mástil sin colores ni filtros.
-- **Audio sintetizado** de cuerda pulsada (Karplus–Strong) para escuchar cada
-  nota, con modo bajo.
+- **Audio** de cuerda pulsada (Karplus–Strong) y sampler SF2 opcional para
+  escuchar cada nota, con modo bajo.
 - **Secuencia** de escala (subida y bajada) y **púa** de acordes.
 - **Patrones CAGED** seleccionables desde el mástil.
 - **Colores por grado** y **badges de grados** para reconocer la función de cada
@@ -252,7 +309,7 @@ Para una build de distribución:
 ```
 
 El APK release se genera como `maestro-dennys.apk`, con **R8** y reducción de
-recursos activos (~1.9 MB). El `debug` no se minifica y pesa más (~9 MB); es
+recursos activos (~7.1 MB). El `debug` no se minifica y pesa más (~13 MB); es
 normal.
 
 > El archivo `keystore.properties` y los `.jks` **no** se versionan. La firma de
@@ -266,7 +323,7 @@ normal.
 
 ```
 app/src/main/java/apk/mavier/dguitar/
-├── core/audio/          Síntesis (Karplus–Strong) y análisis de tono (YIN)
+├── core/audio/          Síntesis (Karplus–Strong), sampler SF2 y análisis de tono (YIN)
 ├── domain/
 │   ├── model/           Música, escalas, acordes, CAGED, armonización,
 │   │                    voicings, timeline, afinador
@@ -277,6 +334,7 @@ app/src/main/java/apk/mavier/dguitar/
 │   └── repository/      Implementación con SharedPreferences
 └── presentation/
     ├── common/          Scheduler, reproductor de notas, menús y etiquetas
+    ├── learning/        Panel de módulos de aprendizaje
     ├── main/            Mástil, escalas, acordes y diálogo del círculo armónico
     ├── improvisation/   Progresiones, ViewModel, playback y arpegio
     ├── tuner/           Afinador

@@ -32,8 +32,20 @@ class FretboardRenderModelTest {
             selectedPattern = 1
         )
         val model = FretboardRenderModel.build(config)
-        assertTrue(model.selectedOccurrences.isNotEmpty())
+        assertEquals(1, model.selectedOccurrences.size)
         assertTrue(model.selectedOccurrences.all { it.number == 1 })
+    }
+
+    @Test
+    fun selectedStartFretKeepsOnlyThatOctave() {
+        val config = FretboardConfig(
+            mode = ViewMode.SCALE,
+            selectedPattern = 1,
+            selectedPatternStartFret = 12
+        )
+        val model = FretboardRenderModel.build(config)
+        assertEquals(1, model.selectedOccurrences.size)
+        assertEquals(12, model.selectedOccurrences.first().startFret)
     }
 
     @Test

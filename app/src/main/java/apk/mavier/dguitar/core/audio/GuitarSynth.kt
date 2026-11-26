@@ -14,6 +14,15 @@ class GuitarSynth {
     @Volatile
     var bassMode: Boolean = false
 
+    @Volatile
+    private var soundFont: Sf2SoundFont? = null
+
+    @Volatile
+    private var soundFontBank: Int = 0
+
+    @Volatile
+    private var soundFontProgram: Int = 0
+
     private companion object {
         const val SAMPLE_RATE = 44100
         const val MAX_VOICES = 8
@@ -22,6 +31,7 @@ class GuitarSynth {
         const val MASTER_GAIN = 0.22f
         const val BASS_MASTER_GAIN = 0.15f
         const val BASS_LOWPASS_ALPHA = 0.10f
+        const val SF2_VELOCITY = 100
     }
 
     private var track: AudioTrack? = null
@@ -30,7 +40,7 @@ class GuitarSynth {
     @Volatile
     private var running = false
 
-    private val voices = CopyOnWriteArrayList<Voice>()
+    private val voices = CopyOnWriteArrayList<PlayableVoice>()
 
     @Synchronized
     fun start() {
@@ -110,12 +120,39 @@ class GuitarSynth {
     fun pluck(stringIndex: Int, midi: Int) {
         if (!running) return
         val isBass = bassMode
+        val font = soundFont
+        if (font != null) {
+            val zones = font.zonesFor(
+                midi,
+                SF2_VELOCITY,
+                soundFontBank,
+                soundFontProgram
+            )
+            if (zones.isNotEmpty()) {
+                zones.forEach { zone ->
+                    trimVoices(MAX_VOICES - 1)
+                    voices.add(Sf2Voice(zone, midi, SAMPLE_RATE, SF2_VELOCITY))
+                }
+                return
+            }
+        }
         val maxVoices = if (isBass) BASS_MAX_VOICES else MAX_VOICES
-        while (voices.size >= maxVoices) {
+        trimVoices(maxVoices - 1)
+        voices.add(Voice(frequency(midi), stringIndex, isBass))
+    }
+
+    fun setSoundFont(font: Sf2SoundFont?, bank: Int = 0, program: Int = 0) {
+        soundFont = font
+        soundFontBank = bank
+        soundFontProgram = program
+        voices.clear()
+    }
+
+    private fun trimVoices(maxSize: Int) {
+        while (voices.size > maxSize) {
             val oldest = voices.minByOrNull { it.ageSamples } ?: break
             voices.remove(oldest)
         }
-        voices.add(Voice(frequency(midi), stringIndex, isBass))
     }
 
     private fun frequency(midi: Int): Double = 440.0 * 2.0.pow((midi - 69) / 12.0)
@@ -127,6 +164,7 @@ class GuitarSynth {
 
         while (running) {
             val isBass = bassMode
+            val hasSoundFont = soundFont != null
             for (i in 0 until CHUNK) {
                 var mix = 0f
                 var index = 0
@@ -139,7 +177,7 @@ class GuitarSynth {
                         index++
                     }
                 }
-                if (isBass) {
+                if (isBass && !hasSoundFont) {
                     bassFilter += (mix - bassFilter) * BASS_LOWPASS_ALPHA
                     mix = bassFilter
                 }
@@ -155,7 +193,11 @@ class GuitarSynth {
         }
     }
 
-    private class Voice(frequency: Double, stringIndex: Int, bass: Boolean) {
+    private class Voice(
+        frequency: Double,
+        stringIndex: Int,
+        bass: Boolean
+    ) : PlayableVoice {
 
         private val size: Int = max(2, (SAMPLE_RATE / frequency).toInt())
         private val delayLine = FloatArray(size)
@@ -180,10 +222,10 @@ class GuitarSynth {
             }
         }
 
-        var ageSamples: Long = 0L
+        override var ageSamples: Long = 0L
             private set
 
-        val finished: Boolean
+        override val finished: Boolean
             get() = envelope < 0.0006f || ageSamples > SAMPLE_RATE.toLong() * 6L
 
         init {
@@ -200,7 +242,7 @@ class GuitarSynth {
             }
         }
 
-        fun next(): Float {
+        override fun next(): Float {
             ageSamples++
             val current = delayLine[cursor]
             val following = delayLine[(cursor + 1) % size]

@@ -39,7 +39,7 @@ class FretboardView @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
 
     var onNotePlayed: ((stringIndex: Int, midi: Int) -> Unit)? = null
-    var onPatternSelected: ((pattern: Int?) -> Unit)? = null
+    var onPatternSelected: ((pattern: CagedPatternOccurrence?) -> Unit)? = null
 
     var config: FretboardConfig = FretboardConfig()
         set(value) {
@@ -420,13 +420,24 @@ class FretboardView @JvmOverloads constructor(
         val segments = patternSegments()
         if (segments.isEmpty()) return
 
-        val selected = if (config.mode == ViewMode.CHORD) config.chordPattern else config.selectedPattern
+        val selectedNumber =
+            if (config.mode == ViewMode.CHORD) config.chordPattern else config.selectedPattern
+        val selectedStart = if (config.mode == ViewMode.CHORD) {
+            config.chordPatternStartFret
+        } else {
+            config.selectedPatternStartFret
+        }
+        val activeOccurrence = selectedNumber?.let {
+            CagedPatterns.occurrence(it, selectedStart)
+        }
         val hook = PatternSegments.hookSize(density)
 
         for (segment in segments) {
             if (!PatternSegments.isDrawable(segment, density)) continue
 
-            val isActive = selected != null && segment.number == selected
+            val isActive = activeOccurrence != null &&
+                segment.number == activeOccurrence.number &&
+                segment.startFret == activeOccurrence.startFret
             segmentPaint.color = if (isActive) 0xFFA18CFF.toInt() else 0xFF6A637D.toInt()
             segmentPaint.strokeWidth = if (isActive) dp(2.5f) else dp(1.6f)
             segmentPaint.alpha = if (isActive) 255 else 220
@@ -451,7 +462,7 @@ class FretboardView @JvmOverloads constructor(
         }
     }
 
-    private fun hitPatternSegment(x: Float, y: Float): Int? =
+    private fun hitPatternSegment(x: Float, y: Float): PatternSegment? =
         PatternSegments.hit(patternSegments(), x, y, density)
 
     fun currentSequenceOccurrence(): CagedPatternOccurrence? {
@@ -466,6 +477,10 @@ class FretboardView @JvmOverloads constructor(
         }
         val lowest = occurrences.minByOrNull { it.startFret }
         if (occurrences.size == 1) return lowest
+        val selectedStart = config.selectedPatternStartFret
+        if (selectedStart != null) {
+            occurrences.firstOrNull { it.startFret == selectedStart }?.let { return it }
+        }
 
         ensureGeometry()
         if (width <= 0 || fretWidth <= 0f) return lowest
@@ -989,7 +1004,13 @@ class FretboardView @JvmOverloads constructor(
         val cx = gutterWidth * 0.5f
         val chordFormation = chordVoicing.positions
         val selected = if (config.mode == ViewMode.CHORD) config.chordPattern else config.selectedPattern
-        val patternIncludesOpen = selected == null || CagedPatterns.includesOpenString(selected)
+        val selectedStart = if (config.mode == ViewMode.CHORD) {
+            config.chordPatternStartFret
+        } else {
+            config.selectedPatternStartFret
+        }
+        val selectedOccurrence = selected?.let { CagedPatterns.occurrence(it, selectedStart) }
+        val patternIncludesOpen = selected == null || selectedOccurrence?.startFret == 0
 
         for (stringIndex in strings.indices) {
             if (stringIndex >= stringYs.size) continue
@@ -1217,8 +1238,29 @@ class FretboardView @JvmOverloads constructor(
                 if (!dragging) {
                     val tappedPattern = hitPatternSegment(event.x, event.y)
                     if (tappedPattern != null) {
-                        val currentPattern = if (config.mode == ViewMode.CHORD) config.chordPattern else config.selectedPattern
-                        val newSelection = if (currentPattern == tappedPattern) null else tappedPattern
+                        val currentNumber =
+                            if (config.mode == ViewMode.CHORD) {
+                                config.chordPattern
+                            } else {
+                                config.selectedPattern
+                            }
+                        val currentStart =
+                            if (config.mode == ViewMode.CHORD) {
+                                config.chordPatternStartFret
+                            } else {
+                                config.selectedPatternStartFret
+                            }
+                        val newSelection = if (currentNumber == tappedPattern.number &&
+                            currentStart == tappedPattern.startFret
+                        ) {
+                            null
+                        } else {
+                            CagedPatternOccurrence(
+                                tappedPattern.number,
+                                tappedPattern.startFret,
+                                tappedPattern.endFret
+                            )
+                        }
                         onPatternSelected?.invoke(newSelection)
                         performClick()
                     } else {

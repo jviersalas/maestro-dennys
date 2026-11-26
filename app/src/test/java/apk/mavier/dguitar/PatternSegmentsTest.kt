@@ -30,7 +30,7 @@ class PatternSegmentsTest {
 
     @Test
     fun openPatternStartsAtTheBoardEdge() {
-        val segment = layout().first { it.number == 4 }
+        val segment = layout().first { it.number == 1 }
         assertEquals(0, segment.lane)
         assertEquals(54f, segment.left, delta)
         assertEquals(307f, segment.right, delta)
@@ -40,16 +40,18 @@ class PatternSegmentsTest {
     @Test
     fun overlappingOccurrencesUseDifferentLanes() {
         val segments = layout()
-        val four = segments.first { it.number == 4 }
-        val five = segments.first { it.number == 5 }
-        assertEquals(1, five.lane)
-        assertTrue(four.lane != five.lane)
+        val one = segments.first { it.number == 1 }
+        val two = segments.first { it.number == 2 }
+        assertEquals(1, two.lane)
+        assertTrue(one.lane != two.lane)
     }
 
     @Test
     fun tapOnASegmentSelectsItsPattern() {
         val segments = layout()
-        assertEquals(4, PatternSegments.hit(segments, 100f, 588f, 1f))
+        val hit = PatternSegments.hit(segments, 100f, 588f, 1f)
+        assertEquals(1, hit?.number)
+        assertEquals(0, hit?.startFret)
     }
 
     @Test
