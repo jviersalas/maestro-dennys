@@ -31,4 +31,10 @@
     <color name="success">#3DDC97</color>
     <color name="danger">#FF6B6B</color>
     <color name="ripple">#337C5CFF</color>
+
+    <!-- Circle of fifths -->
+    <color name="circle_active">#F5C26B</color>
+    <color name="circle_chord">#E3A94F</color>
+    <color name="circle_sharp">#F0A868</color>
+    <color name="circle_flat">#6FB3D9</color>
 </resources>

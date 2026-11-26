@@ -7,12 +7,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import apk.mavier.dguitar.R
 import apk.mavier.dguitar.databinding.ActivityLearningMenuBinding
-import apk.mavier.dguitar.databinding.ItemLearningModuleBinding
+import apk.mavier.dguitar.databinding.ItemLearningModuleFlipBinding
 import apk.mavier.dguitar.domain.di.DependencyProvider
 import apk.mavier.dguitar.domain.model.Tunings
 import apk.mavier.dguitar.domain.model.ViewMode
 import apk.mavier.dguitar.domain.repository.SettingsRepository
 import apk.mavier.dguitar.presentation.common.instrumentLabel
+import apk.mavier.dguitar.presentation.circle.CircleOfFifthsActivity
 import apk.mavier.dguitar.presentation.improvisation.ImprovisationActivity
 import apk.mavier.dguitar.presentation.main.MainActivity
 import apk.mavier.dguitar.presentation.onboarding.InstrumentActivity
@@ -52,46 +53,52 @@ class LearningMenuActivity : AppCompatActivity() {
         )
 
         val modules = listOf(
-            LearningModule(
+            Module(
                 titleRes = R.string.module_chords,
                 descriptionRes = R.string.module_chords_desc,
                 imageRes = R.drawable.portadaacordes,
                 enabled = guitar
             ) { openMain(ViewMode.CHORD) },
-            LearningModule(
+            Module(
                 titleRes = R.string.module_scales,
                 descriptionRes = R.string.module_scales_desc,
-                imageRes = R.drawable.portadaescalas,
-                enabled = true
+                imageRes = R.drawable.portadaescalas
             ) { openMain(ViewMode.SCALE) },
-            LearningModule(
+            Module(
                 titleRes = R.string.module_progression,
                 descriptionRes = R.string.module_progression_desc,
-                imageRes = R.drawable.portadaprogresion,
-                enabled = true
+                imageRes = R.drawable.portadaprogresion
             ) { openMain(ViewMode.SCALE, openGuided = true) },
-            LearningModule(
+            Module(
                 titleRes = R.string.module_improvisation,
                 descriptionRes = R.string.module_improvisation_desc,
-                imageRes = R.drawable.portadaimprovisacion,
-                enabled = true
+                imageRes = R.drawable.portadaimprovisacion
             ) { openImprovisation() },
-            LearningModule(
+            Module(
                 titleRes = R.string.module_tuner,
                 descriptionRes = R.string.module_tuner_desc,
-                imageRes = R.drawable.portadaafinacion,
-                enabled = true
-            ) { openTuner() }
+                imageRes = R.drawable.portadaafinacion
+            ) { openTuner() },
+            Module(
+                titleRes = R.string.module_quintas,
+                descriptionRes = R.string.module_quintas_desc,
+                imageRes = R.drawable.portadaquintas
+            ) { openCircleOfFifths() },
+            Module(
+                titleRes = R.string.module_modulation,
+                descriptionRes = R.string.module_modulation_desc,
+                imageRes = R.drawable.portadamodulacion
+            ) { openHarmonicModule() }
         )
 
         val row = binding.modulesRow
         row.removeAllViews()
+        val flipCards = mutableListOf<ModuleFlipCard>()
         for (module in modules) {
-            val card = ItemLearningModuleBinding.inflate(layoutInflater, row, false)
+            val card = ItemLearningModuleFlipBinding.inflate(layoutInflater, row, false)
             card.moduleImage.setImageResource(module.imageRes)
-            card.moduleTitle.setText(module.titleRes)
-            card.moduleDescription.setText(module.descriptionRes)
-            card.root.alpha = if (module.enabled) 1f else 0.55f
+            card.backTitle.setText(module.titleRes)
+            card.backDescription.setText(module.descriptionRes)
             card.root.contentDescription = buildString {
                 append(getString(module.titleRes))
                 append(". ")
@@ -101,17 +108,24 @@ class LearningMenuActivity : AppCompatActivity() {
                     append(getString(R.string.module_chords_bass))
                 }
             }
-            card.root.setOnClickListener {
-                if (module.enabled) {
-                    module.onOpen()
-                } else {
+            val flipCard = ModuleFlipCard(
+                binding = card,
+                enabled = module.enabled,
+                onOpen = module.onOpen,
+                onDisabled = {
                     Toast.makeText(
                         this,
                         R.string.module_chords_bass,
                         Toast.LENGTH_SHORT
                     ).show()
+                },
+                onRevealed = { revealed ->
+                    flipCards.forEach { other ->
+                        if (other !== revealed) other.collapse()
+                    }
                 }
-            }
+            )
+            flipCards.add(flipCard)
             row.addView(card.root)
         }
     }
@@ -123,6 +137,19 @@ class LearningMenuActivity : AppCompatActivity() {
                 if (openGuided) putExtra(MainActivity.EXTRA_OPEN_GUIDED, true)
             }
         )
+    }
+
+    private fun openHarmonicModule() {
+        startActivity(
+            Intent(this, MainActivity::class.java).apply {
+                putExtra(MainActivity.EXTRA_MODE, ViewMode.SCALE.name)
+                putExtra(MainActivity.EXTRA_OPEN_CIRCLE, true)
+            }
+        )
+    }
+
+    private fun openCircleOfFifths() {
+        startActivity(Intent(this, CircleOfFifthsActivity::class.java))
     }
 
     private fun openImprovisation() {
@@ -139,11 +166,11 @@ class LearningMenuActivity : AppCompatActivity() {
         )
     }
 
-    private data class LearningModule(
+    private data class Module(
         val titleRes: Int,
         val descriptionRes: Int,
         val imageRes: Int,
-        val enabled: Boolean,
+        val enabled: Boolean = true,
         val onOpen: () -> Unit
     )
 }

@@ -226,6 +226,9 @@ class MainActivity : AppCompatActivity() {
         ) {
             binding.root.post { if (!isFinishing) guidedController.show() }
         }
+        if (intent.getBooleanExtra(EXTRA_OPEN_CIRCLE, false)) {
+            binding.root.post { if (!isFinishing) openHarmonicModule() }
+        }
     }
 
     private fun registerBackToMenu() {
@@ -614,6 +617,16 @@ class MainActivity : AppCompatActivity() {
         harmonicCircleController.show()
     }
 
+    private fun openHarmonicModule() {
+        if (!harmonicCircleUseCase.supports(config.scale)) {
+            updateConfig(config.copy(scale = Scales.MAJOR))
+        }
+        if (config.circleDegrees.isEmpty()) {
+            updateConfig(config.copy(circleDegrees = (1..7).toSet()))
+        }
+        harmonicCircleController.show()
+    }
+
     private fun toggleSequence() {
         if (sequencePlaying) stopSequence() else startSequence()
     }
@@ -700,6 +713,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_MODE = "extra_mode"
         const val EXTRA_OPEN_GUIDED = "extra_open_guided"
+        const val EXTRA_OPEN_CIRCLE = "extra_open_circle"
 
         private const val SEQUENCE_STEP_MS = 230L
         private const val STRUM_STEP_MS = 70L
