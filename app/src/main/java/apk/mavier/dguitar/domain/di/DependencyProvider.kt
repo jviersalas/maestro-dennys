@@ -6,6 +6,7 @@ import apk.mavier.dguitar.domain.repository.SoundFontRepository
 import apk.mavier.dguitar.domain.usecase.BuildGuidedProgressionUseCase
 import apk.mavier.dguitar.domain.usecase.BuildHarmonicCircleUseCase
 import apk.mavier.dguitar.domain.usecase.BuildCircleOfFifthsUseCase
+import apk.mavier.dguitar.domain.usecase.BuildModulationUseCase
 import apk.mavier.dguitar.domain.usecase.GetImprovisationStepsUseCase
 
 interface DependencyProvider {
@@ -13,6 +14,7 @@ interface DependencyProvider {
     val improvisationRepository: ImprovisationRepository
     val harmonicCircleUseCase: BuildHarmonicCircleUseCase
     val circleOfFifthsUseCase: BuildCircleOfFifthsUseCase
+    val modulationUseCase: BuildModulationUseCase
     val improvisationStepsUseCase: GetImprovisationStepsUseCase
     val guidedProgressionUseCase: BuildGuidedProgressionUseCase
     val soundFontRepository: SoundFontRepository

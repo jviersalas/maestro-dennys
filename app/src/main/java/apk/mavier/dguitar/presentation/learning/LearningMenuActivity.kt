@@ -16,6 +16,7 @@ import apk.mavier.dguitar.presentation.common.instrumentLabel
 import apk.mavier.dguitar.presentation.circle.CircleOfFifthsActivity
 import apk.mavier.dguitar.presentation.improvisation.ImprovisationActivity
 import apk.mavier.dguitar.presentation.main.MainActivity
+import apk.mavier.dguitar.presentation.modulation.ModulationActivity
 import apk.mavier.dguitar.presentation.onboarding.InstrumentActivity
 import apk.mavier.dguitar.presentation.tuner.TunerActivity
 import apk.mavier.dguitar.presentation.ui.applySystemBarInsets
@@ -75,11 +76,6 @@ class LearningMenuActivity : AppCompatActivity() {
                 imageRes = R.drawable.portadaimprovisacion
             ) { openImprovisation() },
             Module(
-                titleRes = R.string.module_tuner,
-                descriptionRes = R.string.module_tuner_desc,
-                imageRes = R.drawable.portadaafinacion
-            ) { openTuner() },
-            Module(
                 titleRes = R.string.module_quintas,
                 descriptionRes = R.string.module_quintas_desc,
                 imageRes = R.drawable.portadaquintas
@@ -88,7 +84,12 @@ class LearningMenuActivity : AppCompatActivity() {
                 titleRes = R.string.module_modulation,
                 descriptionRes = R.string.module_modulation_desc,
                 imageRes = R.drawable.portadamodulacion
-            ) { openHarmonicModule() }
+            ) { openModulation() },
+            Module(
+                titleRes = R.string.module_tuner,
+                descriptionRes = R.string.module_tuner_desc,
+                imageRes = R.drawable.portadaafinacion
+            ) { openTuner() }
         )
 
         val row = binding.modulesRow
@@ -139,13 +140,8 @@ class LearningMenuActivity : AppCompatActivity() {
         )
     }
 
-    private fun openHarmonicModule() {
-        startActivity(
-            Intent(this, MainActivity::class.java).apply {
-                putExtra(MainActivity.EXTRA_MODE, ViewMode.SCALE.name)
-                putExtra(MainActivity.EXTRA_OPEN_CIRCLE, true)
-            }
-        )
+    private fun openModulation() {
+        startActivity(Intent(this, ModulationActivity::class.java))
     }
 
     private fun openCircleOfFifths() {

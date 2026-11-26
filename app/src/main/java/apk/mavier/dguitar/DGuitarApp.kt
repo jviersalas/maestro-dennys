@@ -9,6 +9,7 @@ import apk.mavier.dguitar.domain.repository.SoundFontRepository
 import apk.mavier.dguitar.domain.usecase.BuildGuidedProgressionUseCase
 import apk.mavier.dguitar.domain.usecase.BuildHarmonicCircleUseCase
 import apk.mavier.dguitar.domain.usecase.BuildCircleOfFifthsUseCase
+import apk.mavier.dguitar.domain.usecase.BuildModulationUseCase
 import apk.mavier.dguitar.domain.usecase.GetImprovisationStepsUseCase
 
 class DGuitarApp : Application(), DependencyProvider {
@@ -26,6 +27,9 @@ class DGuitarApp : Application(), DependencyProvider {
 
     override val circleOfFifthsUseCase: BuildCircleOfFifthsUseCase
         get() = container.circleOfFifthsUseCase
+
+    override val modulationUseCase: BuildModulationUseCase
+        get() = container.modulationUseCase
 
     override val improvisationStepsUseCase: GetImprovisationStepsUseCase
         get() = container.improvisationStepsUseCase
