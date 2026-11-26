@@ -15,6 +15,23 @@
     <string name="improvisation">Improvisación</string>
     <string name="back">Volver</string>
     <string name="back_symbol">‹</string>
+    <string name="menu">Menú</string>
+    <string name="back_to_menu">Volver al menú</string>
+    <string name="learning_menu_title">Aprende</string>
+    <string name="learning_menu_subtitle">%1$s · Elige un módulo</string>
+    <string name="change_instrument">Cambiar instrumento</string>
+    <string name="module_chords">Acordes</string>
+    <string name="module_chords_desc">Forma acordes y descubre sus notas.</string>
+    <string name="module_scales">Escalas</string>
+    <string name="module_scales_desc">Explora escalas y patrones.</string>
+    <string name="module_progression">Progresión</string>
+    <string name="module_progression_desc">Progresiones guiadas y cadencias.</string>
+    <string name="module_improvisation">Improvisación</string>
+    <string name="module_improvisation_desc">Improvisa con metrónomo.</string>
+    <string name="module_tuner">Afinación</string>
+    <string name="module_tuner_desc">Afina tu instrumento.</string>
+    <string name="module_enter">Elegir ›</string>
+    <string name="module_chords_bass">Los acordes están disponibles en guitarra.</string>
     <string name="improv_subtitle_placeholder">Guitarra · Intro</string>
     <string name="tempo_description">Cambiar tempo, 80 BPM</string>
     <string name="tempo_placeholder">80</string>
@@ -55,7 +72,7 @@
     <string name="choose_instrument_subtitle">Configura el mástil para guitarra o bajo</string>
     <string name="guitar_card">Guitarra\n6 cuerdas</string>
     <string name="bass_card">Bajo\n4 o 5 cuerdas</string>
-    <string name="change_later">Podrás cambiarlo después desde el mástil</string>
+    <string name="change_later">Podrás cambiarlo después desde el menú</string>
 
     <string name="harmonic_circle">Círculo armónico</string>
     <string name="harmonic_circle_placeholder">C mayor · tríadas</string>
@@ -63,6 +80,29 @@
     <string name="none">Ninguno</string>
     <string name="sevenths">Séptimas</string>
     <string name="harmonic_circle_hint">Toca un grado para activarlo. Mantén pulsado para cambiar Mayor/Menor.</string>
+
+    <string name="guided_progressions">Progresiones guiadas</string>
+    <string name="guided_progressions_description">Progresiones de acordes guiadas</string>
+    <string name="guided_progressions_placeholder">Tonalidad C · 13 progresiones</string>
+    <string name="guided_subtitle_value">Tonalidad %1$s · %2$d progresiones</string>
+    <string name="guided_progressions_hint">Elige la tonalidad y toca Practicar: se abre el mástil con metrónomo y la escala sugerida.</string>
+    <string name="practice">Practicar</string>
+    <string name="suggested_scale">Escala sugerida: %1$s</string>
+    <string name="bars_count">%1$d compases</string>
+    <string name="guided_practice_description">Practicar %1$s en %2$s</string>
+    <string name="guided_key_description">Tonalidad %1$s</string>
+
+    <string name="sound">Sonido</string>
+    <string name="sound_title">Sonido</string>
+    <string name="sound_synthetic">Sintético (Karplus–Strong)</string>
+    <string name="sound_guitar_acoustic">Guitarra acústica</string>
+    <string name="sound_bass_yr">Bajo YR</string>
+    <string name="sound_import">Importar SF2…</string>
+    <string name="sound_profile_value">Sonido: %1$s</string>
+    <string name="sound_imported">SF2: %1$s</string>
+    <string name="sound_import_success">Sonido importado: %1$s</string>
+    <string name="sound_import_failed">No se pudo importar el SF2</string>
+    <string name="sound_load_failed">No se pudo cargar el sonido; usando el sintético</string>
 
     <string name="library_subtitle_placeholder">Guitarra · 1 guardada</string>
     <string name="library_hint">Toca una improvisación para cargarla. Mantén pulsado para renombrar o eliminar.</string>

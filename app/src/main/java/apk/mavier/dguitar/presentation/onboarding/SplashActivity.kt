@@ -12,7 +12,7 @@ import android.widget.ProgressBar
 import androidx.appcompat.app.AppCompatActivity
 import apk.mavier.dguitar.domain.di.DependencyProvider
 import apk.mavier.dguitar.domain.repository.SettingsRepository
-import apk.mavier.dguitar.presentation.main.MainActivity
+import apk.mavier.dguitar.presentation.learning.LearningMenuActivity
 
 /**
  * Branded splash screen. Shows the Dennys logo briefly, then opens the
@@ -28,7 +28,7 @@ class SplashActivity : AppCompatActivity() {
         if (launched || isFinishing || isDestroyed) return@Runnable
         launched = true
         val destination = if (settingsRepository.hasCompletedOnboarding()) {
-            MainActivity::class.java
+            LearningMenuActivity::class.java
         } else {
             InstrumentActivity::class.java
         }

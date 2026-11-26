@@ -10,7 +10,7 @@ import apk.mavier.dguitar.domain.model.Tuning
 import apk.mavier.dguitar.domain.model.Tunings
 import apk.mavier.dguitar.domain.model.ViewMode
 import apk.mavier.dguitar.domain.repository.SettingsRepository
-import apk.mavier.dguitar.presentation.main.MainActivity
+import apk.mavier.dguitar.presentation.learning.LearningMenuActivity
 
 class InstrumentActivity : AppCompatActivity() {
 
@@ -53,7 +53,11 @@ class InstrumentActivity : AppCompatActivity() {
         settingsRepository.save(current.copy(tuning = tuning, mode = mode))
         settingsRepository.setOnboardingCompleted(true)
 
-        startActivity(Intent(this, MainActivity::class.java))
+        startActivity(
+            Intent(this, LearningMenuActivity::class.java).addFlags(
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            )
+        )
         finish()
     }
 }

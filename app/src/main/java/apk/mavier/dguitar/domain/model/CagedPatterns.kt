@@ -21,7 +21,7 @@ object CagedPatterns {
         10..14
     )
 
-    private val NUMBERS = intArrayOf(4, 5, 1, 2, 3)
+    private val NUMBERS = intArrayOf(1, 2, 3, 4, 5)
 
     val occurrences: List<CagedPatternOccurrence> by lazy { buildOccurrences() }
 
@@ -56,6 +56,15 @@ object CagedPatterns {
 
     fun occurrencesFor(number: Int): List<CagedPatternOccurrence> =
         occurrencesByNumber[number].orEmpty()
+
+    fun occurrence(number: Int, startFret: Int? = null): CagedPatternOccurrence? {
+        val ranges = occurrencesFor(number)
+        if (ranges.isEmpty()) return null
+        if (startFret != null) {
+            ranges.firstOrNull { it.startFret == startFret }?.let { return it }
+        }
+        return ranges.minByOrNull { it.startFret }
+    }
 
     fun contains(number: Int, fret: Int): Boolean =
         occurrencesFor(number).any { it.contains(fret) }

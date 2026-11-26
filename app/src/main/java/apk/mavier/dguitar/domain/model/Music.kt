@@ -354,5 +354,7 @@ data class FretboardConfig(
     val improvShowScale: Boolean = true,
     val improvShowChord: Boolean = true,
     val selectedPattern: Int? = null,
-    val chordPattern: Int? = null
+    val selectedPatternStartFret: Int? = null,
+    val chordPattern: Int? = null,
+    val chordPatternStartFret: Int? = null
 )

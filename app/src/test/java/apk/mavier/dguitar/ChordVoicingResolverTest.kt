@@ -86,7 +86,7 @@ class ChordVoicingResolverTest {
 
     @Test
     fun activeOccurrenceFollowsTheViewport() {
-        val cfg = config(0, pattern = 1)
+        val cfg = config(0, pattern = 3)
         val occurrence = ChordVoicingResolver.activeChordOccurrence(cfg, centerFret = 7f)
         assertNotNull(occurrence)
         assertEquals(5, occurrence!!.startFret)

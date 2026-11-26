@@ -17,3 +17,6 @@ local.properties
 keystore.properties
 *.jks
 *.keystore
+
+# SF2 originales fuera de assets; el ligero se copia a app/src/main/assets/sf2.
+/app/sf2/

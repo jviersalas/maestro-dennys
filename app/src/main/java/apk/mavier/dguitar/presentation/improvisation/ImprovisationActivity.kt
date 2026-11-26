@@ -1,6 +1,7 @@
 package apk.mavier.dguitar.presentation.improvisation
 
 import apk.mavier.dguitar.R
+import android.content.Intent
 import android.graphics.Typeface
 import android.media.AudioManager
 import android.media.ToneGenerator
@@ -24,6 +25,8 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.view.WindowCompat
+import androidx.activity.OnBackPressedCallback
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import apk.mavier.dguitar.domain.di.DependencyProvider
@@ -36,6 +39,7 @@ import apk.mavier.dguitar.databinding.ItemImprovProgressionBinding
 import apk.mavier.dguitar.domain.model.Chords
 import apk.mavier.dguitar.domain.model.ChordTheory
 import apk.mavier.dguitar.domain.model.FretboardConfig
+import apk.mavier.dguitar.domain.model.GuidedProgression
 import apk.mavier.dguitar.domain.model.ImprovBar
 import apk.mavier.dguitar.domain.model.ImprovChord
 import apk.mavier.dguitar.domain.model.ImprovInstrument
@@ -48,14 +52,22 @@ import apk.mavier.dguitar.domain.model.Pitch
 import apk.mavier.dguitar.domain.model.ScaleMode
 import apk.mavier.dguitar.domain.model.Scales
 import apk.mavier.dguitar.domain.model.SequencePositions
+import apk.mavier.dguitar.domain.model.SoundKind
+import apk.mavier.dguitar.domain.model.SoundProfile
 import apk.mavier.dguitar.domain.model.Tuning
 import apk.mavier.dguitar.domain.model.Tunings
 import apk.mavier.dguitar.domain.model.ViewMode
 import apk.mavier.dguitar.domain.repository.ImprovisationRepository
 import apk.mavier.dguitar.domain.repository.SettingsRepository
+import apk.mavier.dguitar.domain.repository.SoundFontRepository
+import apk.mavier.dguitar.domain.usecase.BuildGuidedProgressionUseCase
 import apk.mavier.dguitar.domain.usecase.GetImprovisationStepsUseCase
+import apk.mavier.dguitar.presentation.common.GuidedProgressionsDialogController
 import apk.mavier.dguitar.presentation.common.HandlerScheduler
+import apk.mavier.dguitar.presentation.common.SoundFontCatalog
+import apk.mavier.dguitar.presentation.common.SoundFontFamily
 import apk.mavier.dguitar.presentation.common.instrumentLabel
+import apk.mavier.dguitar.presentation.learning.LearningMenuActivity
 import apk.mavier.dguitar.presentation.theme.ChordColorProvider
 import apk.mavier.dguitar.presentation.ui.FretboardView
 import apk.mavier.dguitar.presentation.ui.applySystemBarInsets
@@ -68,7 +80,9 @@ class ImprovisationActivity : AppCompatActivity() {
     private lateinit var tuning: Tuning
     private lateinit var settingsRepository: SettingsRepository
     private lateinit var improvisationRepository: ImprovisationRepository
+    private lateinit var soundFontRepository: SoundFontRepository
     private lateinit var stepsUseCase: GetImprovisationStepsUseCase
+    private lateinit var guidedProgressionUseCase: BuildGuidedProgressionUseCase
     private lateinit var viewModel: ImprovisationViewModel
 
     private var instrument = ImprovInstrument.BASS
@@ -90,6 +104,10 @@ class ImprovisationActivity : AppCompatActivity() {
     private var scaleRootPc = 0
     private var scaleRootAuto = true
     private var scale: ScaleMode = Scales.PENTATONIC_MINOR
+    private var soundProfile = SoundProfile.bundledGuitar
+    private var loadedSoundProfile: SoundProfile? = null
+    private var loadingSoundProfile: SoundProfile? = null
+    private var failedSoundProfile: SoundProfile? = null
     private var timelineCache: ImprovTimeline? = null
     private lateinit var playbackController: ImprovPlaybackController
 
@@ -103,6 +121,8 @@ class ImprovisationActivity : AppCompatActivity() {
     private var progressionDialogBinding: DialogImprovisationProgressionBinding? = null
     private var libraryDialog: AlertDialog? = null
     private var libraryDialogBinding: DialogImprovLibraryBinding? = null
+    private lateinit var guidedController: GuidedProgressionsDialogController
+    private var pendingGuidedAutoPlay = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -114,13 +134,16 @@ class ImprovisationActivity : AppCompatActivity() {
         val container = (application as DependencyProvider)
         settingsRepository = container.settingsRepository
         improvisationRepository = container.improvisationRepository
+        soundFontRepository = container.soundFontRepository
         stepsUseCase = container.improvisationStepsUseCase
+        guidedProgressionUseCase = container.guidedProgressionUseCase
 
         val config = settingsRepository.load()
         tuning = config.tuning
         isGuitar = tuning.strings.size >= 6
         instrument = if (isGuitar) ImprovInstrument.GUITAR else ImprovInstrument.BASS
         useFlats = config.useFlats
+        soundProfile = settingsRepository.loadSoundProfile()
 
         viewModel = ViewModelProvider(
             this,
@@ -164,6 +187,7 @@ class ImprovisationActivity : AppCompatActivity() {
 
         val guitarSynth = GuitarSynth().apply { bassMode = !isGuitar }
         synth = guitarSynth
+        refreshSoundProfile()
         binding.improvFretboard.onNotePlayed = { stringIndex, midi ->
             guitarSynth.pluck(stringIndex, midi)
         }
@@ -192,11 +216,15 @@ class ImprovisationActivity : AppCompatActivity() {
             }
         }
 
-        binding.backButton.setOnClickListener { finish() }
+        binding.backButton.setOnClickListener { openLearningMenu() }
+        binding.backButton.contentDescription = getString(R.string.back_to_menu)
         binding.playButton.setOnClickListener { togglePlayback() }
         binding.tempoButton.setOnClickListener { showTempoDialog() }
         binding.libraryButton.setOnClickListener { showLibraryDialog() }
         binding.progressionButton.setOnClickListener { showProgressionDialog() }
+        binding.guidedButton.contentDescription =
+            getString(R.string.guided_progressions_description)
+        binding.guidedButton.setOnClickListener { guidedController.show() }
         binding.degreesButton.setOnClickListener {
             showDegrees = !showDegrees
             viewModel.setShowDegrees(showDegrees)
@@ -213,12 +241,72 @@ class ImprovisationActivity : AppCompatActivity() {
         binding.optionsButton.isSelected = false
         binding.optionsButton.contentDescription = "Mostrar opciones"
 
-        renderAll()
+        guidedController = GuidedProgressionsDialogController(
+            activity = this,
+            useCase = guidedProgressionUseCase,
+            keyProvider = { scaleRootPc },
+            useFlatsProvider = { useFlats },
+            onPractice = { guided, keyRootPc ->
+                applyGuidedProgression(guided, keyRootPc, autoPlay = true)
+            }
+        )
+
+        val guidedId = intent.getStringExtra(EXTRA_GUIDED_ID)
+        val guidedKey = intent.getIntExtra(EXTRA_GUIDED_KEY, -1)
+        val guided = guidedId?.let { guidedProgressionUseCase.byId(it) }
+        if (guided != null && guidedKey in 0..11) {
+            applyGuidedProgression(
+                guided,
+                guidedKey,
+                autoPlay = intent.getBooleanExtra(EXTRA_GUIDED_PLAY, true)
+            )
+        } else {
+            renderAll()
+        }
+        registerBackToMenu()
+    }
+
+    private fun registerBackToMenu() {
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    openLearningMenu()
+                }
+            }
+        )
+    }
+
+    private fun openLearningMenu() {
+        stopPlayback()
+        startActivity(
+            Intent(this, LearningMenuActivity::class.java).addFlags(
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            )
+        )
+        finish()
     }
 
     override fun onResume() {
         super.onResume()
+        val family = if (isGuitar) SoundFontFamily.GUITAR else SoundFontFamily.BASS
+        val current = SoundFontCatalog.resolve(
+            settingsRepository.loadSoundProfile(),
+            family
+        )
+        if (current != soundProfile) {
+            soundProfile = current
+            loadedSoundProfile = null
+            loadingSoundProfile = null
+            failedSoundProfile = null
+            synth?.setSoundFont(null)
+        }
         synth?.start()
+        refreshSoundProfile()
+        if (pendingGuidedAutoPlay) {
+            pendingGuidedAutoPlay = false
+            binding.root.post { if (!isFinishing) startPlayback() }
+        }
     }
 
     override fun onPause() {
@@ -466,6 +554,48 @@ class ImprovisationActivity : AppCompatActivity() {
         saveSections()
         libraryDialog?.dismiss()
         renderAll()
+    }
+
+    private fun applyGuidedProgression(
+        guided: GuidedProgression,
+        keyRootPc: Int,
+        autoPlay: Boolean
+    ) {
+        stopPlayback()
+        saveSections()
+        val built = guidedProgressionUseCase.buildProgression(guided, keyRootPc, useFlats)
+        val existing = progressions.indexOfFirst { it.id == built.id }
+        if (existing >= 0) {
+            progressions[existing] = built
+        } else {
+            progressions.add(built)
+        }
+        currentProgressionId = built.id
+        sections = built.sections.toMutableList()
+        invalidateTimeline()
+        selectedSection = 0
+        setActiveStep(if (sections.first().chords.isNotEmpty()) 0 else -1)
+
+        scale = guided.suggestedScale
+        viewModel.setScaleIndex(Scales.all.indexOf(guided.suggestedScale))
+        scaleRootAuto = false
+        scaleRootPc = guided.scaleRoot(keyRootPc)
+        viewModel.setScaleRoot(scaleRootPc)
+        showScale = true
+        viewModel.setShowScale(true)
+        metronomeEnabled = true
+        viewModel.setMetronome(true)
+
+        saveSections()
+        renderAll()
+
+        if (autoPlay) {
+            if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                binding.root.post { if (!isFinishing) startPlayback() }
+            } else {
+                pendingGuidedAutoPlay = true
+            }
+        }
     }
 
     private fun createProgression(name: String) {
@@ -1248,6 +1378,47 @@ class ImprovisationActivity : AppCompatActivity() {
         if (scaleRootAuto) scaleRootPc = firstChordRoot()
     }
 
+    private fun refreshSoundProfile() {
+        val guitarSynth = synth ?: return
+        val family = if (isGuitar) SoundFontFamily.GUITAR else SoundFontFamily.BASS
+        val resolved = SoundFontCatalog.resolve(soundProfile, family)
+        if (resolved != soundProfile) {
+            soundProfile = resolved
+            settingsRepository.saveSoundProfile(resolved)
+        }
+        if (soundProfile.kind == SoundKind.SYNTHETIC) {
+            if (loadedSoundProfile != null || loadingSoundProfile != null) {
+                guitarSynth.setSoundFont(null)
+                loadedSoundProfile = null
+                loadingSoundProfile = null
+            }
+            return
+        }
+        if (loadedSoundProfile == soundProfile ||
+            loadingSoundProfile == soundProfile ||
+            failedSoundProfile == soundProfile
+        ) {
+            return
+        }
+        val target = soundProfile
+        guitarSynth.setSoundFont(null)
+        loadingSoundProfile = target
+        soundFontRepository.load(target) { font ->
+            if (loadingSoundProfile == target) loadingSoundProfile = null
+            if (isFinishing || isDestroyed) return@load
+            if (soundProfile != target) return@load
+            if (font != null) {
+                guitarSynth.setSoundFont(font)
+                loadedSoundProfile = target
+                failedSoundProfile = null
+            } else {
+                loadedSoundProfile = null
+                failedSoundProfile = target
+                Toast.makeText(this, R.string.sound_load_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
 
@@ -1258,14 +1429,18 @@ class ImprovisationActivity : AppCompatActivity() {
         refreshLibraryDialog()
     }
 
-    private companion object {
-        const val DEFAULT_BPM = 80
-        const val MIN_BPM = 40
-        const val MAX_BPM = 220
-        const val BEATS_PER_BAR = 4L
-        const val MIN_NOTE_GAP_MS = 30L
-        const val PROGRESS_MAX = 1000
-        const val METRONOME_VOLUME = 70
-        const val METRONOME_TICK_MS = 45
+    companion object {
+        const val EXTRA_GUIDED_ID = "extra_guided_id"
+        const val EXTRA_GUIDED_KEY = "extra_guided_key"
+        const val EXTRA_GUIDED_PLAY = "extra_guided_play"
+
+        private const val DEFAULT_BPM = 80
+        private const val MIN_BPM = 40
+        private const val MAX_BPM = 220
+        private const val BEATS_PER_BAR = 4L
+        private const val MIN_NOTE_GAP_MS = 30L
+        private const val PROGRESS_MAX = 1000
+        private const val METRONOME_VOLUME = 70
+        private const val METRONOME_TICK_MS = 45
     }
 }

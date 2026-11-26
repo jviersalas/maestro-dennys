@@ -33,7 +33,12 @@ class FretboardRenderModel private constructor(
             val selectedOccurrences = if (
                 config.mode == ViewMode.SCALE && config.selectedPattern != null
             ) {
-                CagedPatterns.occurrencesFor(config.selectedPattern)
+                listOfNotNull(
+                    CagedPatterns.occurrence(
+                        config.selectedPattern,
+                        config.selectedPatternStartFret
+                    )
+                )
             } else {
                 emptyList()
             }

@@ -4,9 +4,12 @@ import android.content.Context
 import android.content.SharedPreferences
 import apk.mavier.dguitar.data.preferences.HarmonicCircleCodec
 import apk.mavier.dguitar.data.preferences.PreferenceKeys
+import apk.mavier.dguitar.data.preferences.SoundProfileCodec
+import apk.mavier.dguitar.domain.model.CagedPatterns
 import apk.mavier.dguitar.domain.model.Chords
 import apk.mavier.dguitar.domain.model.FretboardConfig
 import apk.mavier.dguitar.domain.model.Scales
+import apk.mavier.dguitar.domain.model.SoundProfile
 import apk.mavier.dguitar.domain.model.Tunings
 import apk.mavier.dguitar.domain.model.ViewMode
 import apk.mavier.dguitar.domain.repository.SettingsRepository
@@ -39,6 +42,8 @@ class SharedPreferencesSettingsRepository(context: Context) : SettingsRepository
         val rootPc = ((prefs.getInt(PreferenceKeys.ROOT, 0) % 12) + 12) % 12
         val patternValue = prefs.getInt(PreferenceKeys.PATTERN, 0)
         val chordPatternValue = prefs.getInt(PreferenceKeys.CHORD_PATTERN, 0)
+        val selectedPattern = if (patternValue in 1..5) patternValue else null
+        val chordPattern = if (chordPatternValue in 1..5) chordPatternValue else null
 
         return FretboardConfig(
             tuning = tuning,
@@ -56,8 +61,16 @@ class SharedPreferencesSettingsRepository(context: Context) : SettingsRepository
             circleOverrides = HarmonicCircleCodec.parseOverrides(
                 prefs.getString(PreferenceKeys.CIRCLE_OVERRIDES, "")
             ),
-            selectedPattern = if (patternValue in 1..5) patternValue else null,
-            chordPattern = if (chordPatternValue in 1..5) chordPatternValue else null
+            selectedPattern = selectedPattern,
+            selectedPatternStartFret = resolveStart(
+                selectedPattern,
+                prefs.getInt(PreferenceKeys.PATTERN_START_FRET, NO_FRET)
+            ),
+            chordPattern = chordPattern,
+            chordPatternStartFret = resolveStart(
+                chordPattern,
+                prefs.getInt(PreferenceKeys.CHORD_PATTERN_START_FRET, NO_FRET)
+            )
         )
     }
 
@@ -83,7 +96,15 @@ class SharedPreferencesSettingsRepository(context: Context) : SettingsRepository
             .remove(PreferenceKeys.LEGACY_OVERLAY_ROOTS)
             .remove(PreferenceKeys.LEGACY_OVERLAY_QUALITY)
             .putInt(PreferenceKeys.PATTERN, config.selectedPattern ?: 0)
+            .putInt(
+                PreferenceKeys.PATTERN_START_FRET,
+                config.selectedPatternStartFret ?: NO_FRET
+            )
             .putInt(PreferenceKeys.CHORD_PATTERN, config.chordPattern ?: 0)
+            .putInt(
+                PreferenceKeys.CHORD_PATTERN_START_FRET,
+                config.chordPatternStartFret ?: NO_FRET
+            )
             .apply()
     }
 
@@ -92,5 +113,25 @@ class SharedPreferencesSettingsRepository(context: Context) : SettingsRepository
 
     override fun setOnboardingCompleted(completed: Boolean) {
         prefs.edit().putBoolean(PreferenceKeys.ONBOARDING_COMPLETED, completed).apply()
+    }
+
+    override fun loadSoundProfile(): SoundProfile =
+        SoundProfileCodec.parse(prefs.getString(PreferenceKeys.SOUND_PROFILE, null))
+
+    override fun saveSoundProfile(profile: SoundProfile) {
+        prefs.edit()
+            .putString(PreferenceKeys.SOUND_PROFILE, SoundProfileCodec.encode(profile))
+            .apply()
+    }
+
+    private fun resolveStart(number: Int?, storedStart: Int): Int? {
+        if (number == null) return null
+        val occurrences = CagedPatterns.occurrencesFor(number)
+        return occurrences.firstOrNull { it.startFret == storedStart }?.startFret
+            ?: occurrences.minByOrNull { it.startFret }?.startFret
+    }
+
+    private companion object {
+        const val NO_FRET = -1
     }
 }

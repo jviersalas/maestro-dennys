@@ -135,6 +135,10 @@ object ChordVoicingResolver {
         val occurrences = CagedPatterns.occurrencesFor(pattern)
         if (occurrences.isEmpty()) return null
         if (occurrences.size == 1) return occurrences.first()
+        val selectedStart = cfg.chordPatternStartFret
+        if (selectedStart != null) {
+            occurrences.firstOrNull { it.startFret == selectedStart }?.let { return it }
+        }
 
         return occurrences.firstOrNull {
             centerFret >= it.startFret && centerFret <= it.endFret

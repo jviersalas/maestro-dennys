@@ -5,6 +5,8 @@ import kotlin.math.abs
 
 data class PatternSegment(
     val number: Int,
+    val startFret: Int,
+    val endFret: Int,
     val lane: Int,
     val left: Float,
     val right: Float,
@@ -75,6 +77,8 @@ object PatternSegments {
             result.add(
                 PatternSegment(
                     number = occurrence.number,
+                    startFret = occurrence.startFret,
+                    endFret = occurrence.endFret,
                     lane = lanes[index],
                     left = left,
                     right = right,
@@ -85,19 +89,19 @@ object PatternSegments {
         return result
     }
 
-    fun hit(segments: List<PatternSegment>, x: Float, y: Float, density: Float): Int? {
+    fun hit(segments: List<PatternSegment>, x: Float, y: Float, density: Float): PatternSegment? {
         val tolerance = dp(HIT_TOLERANCE_DP, density)
-        var bestNumber: Int? = null
+        var best: PatternSegment? = null
         var bestDistance = Float.MAX_VALUE
 
         for (segment in segments) {
             val distance = abs(y - segment.barY)
             if (x in segment.left..segment.right && distance <= tolerance && distance < bestDistance) {
                 bestDistance = distance
-                bestNumber = segment.number
+                best = segment
             }
         }
-        return bestNumber
+        return best
     }
 
     fun isDrawable(segment: PatternSegment, density: Float): Boolean =
