@@ -2,9 +2,9 @@ package apk.mavier.dguitar.domain.model
 
 data class HarmonicChord(
     val degree: Int,
-    val rootPc: Int,
-    val quality: ChordQuality
-)
+    override val rootPc: Int,
+    override val quality: ChordQuality
+) : ChordSpec
 
 object HarmonicCircle {
 

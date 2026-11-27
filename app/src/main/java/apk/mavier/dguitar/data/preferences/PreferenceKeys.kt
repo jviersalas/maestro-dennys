@@ -40,4 +40,9 @@ internal object PreferenceKeys {
     const val IMPROV_DEGREES = "improv_degrees"
     const val IMPROV_COLORS = "improv_colors"
     const val IMPROV_METRONOME = "improv_metronome"
+
+    const val SONGBOOK_SONGS = "songbook_songs"
+    const val SONGBOOK_HEY_JUDE_SEEDED = "songbook_hey_jude_seeded"
+    const val SONGBOOK_YESTERDAY_SEEDED = "songbook_yesterday_seeded"
+    const val SONGBOOK_EXAMPLES_VERSION = "songbook_examples_version"
 }

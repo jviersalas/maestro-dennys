@@ -1,12 +1,17 @@
 package apk.mavier.dguitar.presentation.improvisation
 
 import apk.mavier.dguitar.domain.model.ImprovBar
+import apk.mavier.dguitar.presentation.common.PlaybackTimeline
 import apk.mavier.dguitar.presentation.common.Scheduler
 
+/**
+ * Plays improvisation bars. The shared [PlaybackTimeline] owns scheduling and
+ * progress; this adapter only defines how long each bar lasts.
+ */
 class ImprovPlaybackController(
-    private val scheduler: Scheduler,
-    private val tickMs: Long = DEFAULT_TICK_MS,
-    private val progressMax: Int = DEFAULT_PROGRESS_MAX
+    scheduler: Scheduler,
+    tickMs: Long = DEFAULT_TICK_MS,
+    progressMax: Int = DEFAULT_PROGRESS_MAX
 ) {
 
     interface Listener {
@@ -15,94 +20,50 @@ class ImprovPlaybackController(
         fun onFinished()
     }
 
+    private val timeline = PlaybackTimeline<ImprovBar>(
+        scheduler = scheduler,
+        durationMs = { bar, bpm ->
+            60_000L / bpm * BEATS_PER_BAR * bar.step.chord.normalizedBarsPerChord
+        },
+        tickMs = tickMs,
+        progressMax = progressMax
+    )
+
     var listener: Listener? = null
+        set(value) {
+            field = value
+            timeline.listener = value?.let { target ->
+                object : PlaybackTimeline.Listener<ImprovBar> {
+                    override fun onStep(index: Int, item: ImprovBar) {
+                        target.onBarChanged(index)
+                    }
 
-    private var bars: List<ImprovBar> = emptyList()
-    private var bpm = DEFAULT_BPM
-    private var activeBar = -1
-    private var elapsedMs = 0L
-    private var running = false
-    private var barTask: Scheduler.Cancellable? = null
-    private var progressTask: Scheduler.Cancellable? = null
+                    override fun onProgress(progress: Int) {
+                        target.onProgress(progress)
+                    }
 
-    val isRunning: Boolean
-        get() = running
-
-    val progress: Int
-        get() {
-            if (!running) return 0
-            val duration = barDurationMs()
-            if (duration <= 0L) return 0
-            val fraction = elapsedMs.toFloat() / duration.toFloat()
-            return (fraction.coerceIn(0f, 1f) * progressMax).toInt()
+                    override fun onFinished() {
+                        target.onFinished()
+                    }
+                }
+            }
         }
 
+    val isRunning: Boolean
+        get() = timeline.isRunning
+
+    val progress: Int
+        get() = timeline.progress
+
     fun start(bars: List<ImprovBar>, startBar: Int, bpm: Int) {
-        stop()
-        if (bars.isEmpty()) return
-        this.bars = bars
-        this.bpm = bpm.coerceIn(MIN_BPM, MAX_BPM)
-        activeBar = startBar.coerceIn(0, bars.lastIndex)
-        running = true
-        enterBar()
+        timeline.start(bars, startBar, bpm)
     }
 
     fun stop() {
-        running = false
-        barTask?.cancel()
-        barTask = null
-        progressTask?.cancel()
-        progressTask = null
-        elapsedMs = 0L
+        timeline.stop()
     }
-
-    private fun enterBar() {
-        if (!running) return
-        if (activeBar !in bars.indices) {
-            finish()
-            return
-        }
-        elapsedMs = 0L
-        listener?.onBarChanged(activeBar)
-        barTask?.cancel()
-        barTask = scheduler.postDelayed(barDurationMs()) { advanceBar() }
-        progressTask?.cancel()
-        scheduleProgressTick()
-    }
-
-    private fun advanceBar() {
-        if (!running) return
-        val next = activeBar + 1
-        if (next >= bars.size) {
-            finish()
-            return
-        }
-        activeBar = next
-        enterBar()
-    }
-
-    private fun scheduleProgressTick() {
-        progressTask = scheduler.postDelayed(tickMs) {
-            if (!running) return@postDelayed
-            elapsedMs += tickMs
-            listener?.onProgress(progress)
-            if (elapsedMs < barDurationMs()) scheduleProgressTick()
-        }
-    }
-
-    private fun finish() {
-        stop()
-        listener?.onFinished()
-    }
-
-    private fun barDurationMs(): Long = beatDurationMs() * BEATS_PER_BAR
-
-    private fun beatDurationMs(): Long = 60_000L / bpm
 
     private companion object {
-        const val DEFAULT_BPM = 80
-        const val MIN_BPM = 40
-        const val MAX_BPM = 220
         const val BEATS_PER_BAR = 4L
         const val DEFAULT_TICK_MS = 50L
         const val DEFAULT_PROGRESS_MAX = 1000

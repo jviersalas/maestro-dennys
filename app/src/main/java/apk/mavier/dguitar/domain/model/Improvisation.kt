@@ -3,15 +3,12 @@ package apk.mavier.dguitar.domain.model
 enum class ImprovInstrument { GUITAR, BASS }
 
 data class ImprovChord(
-    val rootPc: Int,
-    val quality: ChordQuality,
+    override val rootPc: Int,
+    override val quality: ChordQuality,
     val principalOnly: Boolean = false,
     val hitsPerBar: Int = DEFAULT_HITS_PER_BAR,
     val barsPerChord: Int = DEFAULT_BARS_PER_CHORD
-) {
-    fun label(useFlats: Boolean): String =
-        Pitch.name(rootPc, useFlats) + quality.symbol
-
+) : ChordSpec {
     val normalizedHitsPerBar: Int
         get() = if (hitsPerBar in HITS_OPTIONS) hitsPerBar else DEFAULT_HITS_PER_BAR
 

@@ -325,12 +325,14 @@ object Chords {
     val DIMINISHED_MAJOR_7 = ChordQuality("Disminuido con maj7", "dimMaj7", listOf(0, 3, 6, 11))
     val SUS_2_7 = ChordQuality("Sus2 7", "7sus2", listOf(0, 2, 7, 10))
     val SUS_4_7 = ChordQuality("Sus4 7", "7sus4", listOf(0, 5, 7, 10))
+    val AUGMENTED_SHARP_5 = ChordQuality("Aumentado (#5)", "(#5)", listOf(0, 4, 8))
 
     val all = listOf(
         MAJOR, MINOR, POWER, DOMINANT_7, MAJOR_7, MINOR_7, DIMINISHED,
         DIMINISHED_7, HALF_DIMINISHED, AUGMENTED, SUS_2, SUS_4, SIXTH,
         MINOR_6, ADD_9, NINTH, MINOR_9, MAJOR_9, MINOR_MAJOR_7,
-        AUGMENTED_MAJOR_7, AUGMENTED_7, DIMINISHED_MAJOR_7, SUS_2_7, SUS_4_7
+        AUGMENTED_MAJOR_7, AUGMENTED_7, DIMINISHED_MAJOR_7, SUS_2_7, SUS_4_7,
+        AUGMENTED_SHARP_5
     )
 }
 

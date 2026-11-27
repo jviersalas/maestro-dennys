@@ -4,8 +4,10 @@ import android.content.Context
 import apk.mavier.dguitar.data.repository.AndroidSoundFontRepository
 import apk.mavier.dguitar.data.repository.SharedPreferencesImprovisationRepository
 import apk.mavier.dguitar.data.repository.SharedPreferencesSettingsRepository
+import apk.mavier.dguitar.data.repository.SharedPreferencesSongbookRepository
 import apk.mavier.dguitar.domain.repository.ImprovisationRepository
 import apk.mavier.dguitar.domain.repository.SettingsRepository
+import apk.mavier.dguitar.domain.repository.SongbookRepository
 import apk.mavier.dguitar.domain.repository.SoundFontRepository
 import apk.mavier.dguitar.domain.usecase.BuildGuidedProgressionUseCase
 import apk.mavier.dguitar.domain.usecase.BuildHarmonicCircleUseCase
@@ -19,6 +21,9 @@ class AppContainer(context: Context) {
 
     val improvisationRepository: ImprovisationRepository =
         SharedPreferencesImprovisationRepository(context)
+
+    val songbookRepository: SongbookRepository =
+        SharedPreferencesSongbookRepository(context)
 
     val harmonicCircleUseCase: BuildHarmonicCircleUseCase =
         BuildHarmonicCircleUseCase()

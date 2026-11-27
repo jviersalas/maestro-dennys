@@ -9,6 +9,7 @@ import android.provider.OpenableColumns
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
 import android.view.Menu
 import android.view.View
 import android.widget.PopupMenu
@@ -22,30 +23,32 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import apk.mavier.dguitar.core.audio.GuitarSynth
 import apk.mavier.dguitar.databinding.ActivityMainBinding
 import apk.mavier.dguitar.domain.di.DependencyProvider
-import apk.mavier.dguitar.domain.model.Chords
 import apk.mavier.dguitar.domain.model.ChordTheory
 import apk.mavier.dguitar.domain.model.FretboardConfig
 import apk.mavier.dguitar.domain.model.HarmonicChord
 import apk.mavier.dguitar.domain.model.Pitch
 import apk.mavier.dguitar.domain.model.Scales
 import apk.mavier.dguitar.domain.model.SequencePositions
-import apk.mavier.dguitar.domain.model.SoundKind
 import apk.mavier.dguitar.domain.model.SoundProfile
+import apk.mavier.dguitar.domain.model.SongChord
 import apk.mavier.dguitar.domain.model.Tunings
 import apk.mavier.dguitar.domain.model.ViewMode
 import apk.mavier.dguitar.domain.repository.SettingsRepository
 import apk.mavier.dguitar.domain.repository.SoundFontRepository
 import apk.mavier.dguitar.domain.usecase.BuildGuidedProgressionUseCase
 import apk.mavier.dguitar.domain.usecase.BuildHarmonicCircleUseCase
+import apk.mavier.dguitar.presentation.common.AudioSession
+import apk.mavier.dguitar.presentation.common.ChordAudition
 import apk.mavier.dguitar.presentation.common.GuidedProgressionsDialogController
 import apk.mavier.dguitar.presentation.common.HandlerScheduler
 import apk.mavier.dguitar.presentation.common.NoteSequencePlayer
 import apk.mavier.dguitar.presentation.common.NoteStep
-import apk.mavier.dguitar.presentation.common.SoundFontCatalog
 import apk.mavier.dguitar.presentation.common.SoundFontFamily
 import apk.mavier.dguitar.presentation.common.SoundProfileDialogController
+import apk.mavier.dguitar.presentation.common.SongChordPickerDialog
 import apk.mavier.dguitar.presentation.common.instrumentLabel
 import apk.mavier.dguitar.presentation.common.showLabeledMenu
+import apk.mavier.dguitar.presentation.common.soundProfileLabel
 import apk.mavier.dguitar.presentation.improvisation.ImprovisationActivity
 import apk.mavier.dguitar.presentation.learning.LearningMenuActivity
 import apk.mavier.dguitar.presentation.theme.ChordColorProvider
@@ -56,24 +59,22 @@ import apk.mavier.dguitar.presentation.ui.applySystemBarInsets
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private lateinit var synth: GuitarSynth
+    private lateinit var audioSession: AudioSession
     private lateinit var settingsRepository: SettingsRepository
     private lateinit var soundFontRepository: SoundFontRepository
     private lateinit var harmonicCircleUseCase: BuildHarmonicCircleUseCase
     private lateinit var guidedProgressionUseCase: BuildGuidedProgressionUseCase
     private lateinit var harmonicCircleController: HarmonicCircleDialogController
     private lateinit var chordGuideController: ChordGuideDialogController
+    private lateinit var chordPickerDialog: SongChordPickerDialog
     private lateinit var guidedController: GuidedProgressionsDialogController
     private lateinit var soundProfileDialog: SoundProfileDialogController
     private lateinit var importSoundFontLauncher: ActivityResultLauncher<Array<String>>
-    private var soundProfile = SoundProfile.bundledGuitar
-    private var loadedSoundProfile: SoundProfile? = null
-    private var loadingSoundProfile: SoundProfile? = null
-    private var failedSoundProfile: SoundProfile? = null
     private var config = FretboardConfig()
 
     private lateinit var sequencePlayer: NoteSequencePlayer
     private lateinit var strumPlayer: NoteSequencePlayer
+    private lateinit var chordAudition: ChordAudition
     private var sequencePlaying = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -114,11 +115,30 @@ class MainActivity : AppCompatActivity() {
             }
             config = config.copy(mode = safeMode)
         }
-        soundProfile = settingsRepository.loadSoundProfile()
+        audioSession = AudioSession(
+            output = GuitarSynth(),
+            settings = settingsRepository,
+            soundFonts = soundFontRepository,
+            guitar = { !isBass() },
+            isActive = { !isFinishing && !isDestroyed },
+            onLoadFailed = {
+                Toast.makeText(
+                    this,
+                    R.string.sound_load_failed,
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        )
 
         chordGuideController = ChordGuideDialogController(
             activity = this,
             configProvider = { config }
+        )
+        chordPickerDialog = SongChordPickerDialog(
+            activity = this,
+            useFlatsProvider = { config.useFlats },
+            onPreview = { chord -> playChordPreview(chord) },
+            allowBass = false
         )
         guidedController = GuidedProgressionsDialogController(
             activity = this,
@@ -135,7 +155,6 @@ class MainActivity : AppCompatActivity() {
             }
         )
 
-        synth = GuitarSynth()
         importSoundFontLauncher = registerForActivityResult(
             ActivityResultContracts.OpenDocument()
         ) { uri ->
@@ -147,7 +166,7 @@ class MainActivity : AppCompatActivity() {
                 if (isBass()) SoundFontFamily.BASS else SoundFontFamily.GUITAR
             },
             importedNames = { soundFontRepository.importedNames() },
-            onSelect = { applySoundProfile(it) },
+            onSelect = { audioSession.select(it) },
             onImport = { importSoundFontLauncher.launch(arrayOf("*/*")) }
         )
 
@@ -155,7 +174,7 @@ class MainActivity : AppCompatActivity() {
         sequencePlayer = NoteSequencePlayer(scheduler)
         sequencePlayer.listener = object : NoteSequencePlayer.Listener {
             override fun onNoteStep(step: NoteStep, index: Int) {
-                synth.pluck(step.stringIndex, step.midi)
+                audioSession.pluck(step.stringIndex, step.midi)
                 binding.fretboard.highlightNote(step.stringIndex, step.fret, reveal = true)
                 binding.sequenceButton.text = getString(
                     R.string.sequence_playing_note,
@@ -170,15 +189,20 @@ class MainActivity : AppCompatActivity() {
         strumPlayer = NoteSequencePlayer(scheduler)
         strumPlayer.listener = object : NoteSequencePlayer.Listener {
             override fun onNoteStep(step: NoteStep, index: Int) {
-                synth.pluck(step.stringIndex, step.midi)
+                audioSession.pluck(step.stringIndex, step.midi)
                 binding.fretboard.highlightNote(step.stringIndex, step.fret, reveal = false)
             }
 
             override fun onFinished() = Unit
         }
+        chordAudition = ChordAudition(
+            silenceNotes = { audioSession.silence() },
+            player = strumPlayer,
+            tuning = { config.tuning }
+        )
 
         binding.fretboard.onNotePlayed = { stringIndex, midi ->
-            synth.pluck(stringIndex, midi)
+            audioSession.pluck(stringIndex, midi)
         }
         binding.fretboard.onPatternSelected = { occurrence ->
             if (config.mode == ViewMode.CHORD) {
@@ -198,7 +222,13 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        binding.rootButton.setOnClickListener { showRootMenu(it) }
+        binding.rootButton.setOnClickListener {
+            if (config.mode == ViewMode.CHORD) {
+                showChordPicker()
+            } else {
+                showRootMenu(it)
+            }
+        }
         binding.menuButton.setOnClickListener { openLearningMenu() }
         binding.settingsButton.setOnClickListener { showSettingsMenu(it) }
         binding.scaleButton.setOnClickListener { showScaleOrChordMenu(it) }
@@ -255,14 +285,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        synth.start()
+        audioSession.start()
     }
 
     override fun onPause() {
         super.onPause()
         stopSequence()
         stopStrum()
-        synth.stop()
+        audioSession.stop()
     }
 
     override fun onDestroy() {
@@ -280,22 +310,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderConfig() {
-        synth.bassMode = isBass()
+        audioSession.bassMode = isBass()
         binding.fretboard.config = config
 
         binding.rootButton.text = Pitch.name(config.rootPc, config.useFlats)
         binding.rootButton.contentDescription =
-            "Nota raíz ${Pitch.name(config.rootPc, config.useFlats)}"
+            "Nota raíz ${Pitch.name(config.rootPc, config.useFlats)} " +
+                "(${Pitch.solfegeName(config.rootPc, config.useFlats)})"
 
         binding.titleText.text = when (config.mode) {
             ViewMode.SCALE -> config.scale.name
-            ViewMode.CHORD -> config.chord.name
+            ViewMode.CHORD -> chordTitleText()
             ViewMode.FREE -> "Modo libre"
             ViewMode.IMPROV -> "Improvisación"
         }
         binding.subtitleText.text = when (config.mode) {
             ViewMode.SCALE -> "${instrumentLabel(config.tuning.strings.size)} · ${config.scale.formula}"
-            ViewMode.CHORD -> "${instrumentLabel(config.tuning.strings.size)} · ${chordNotesText()}"
+            ViewMode.CHORD ->
+                "${instrumentLabel(config.tuning.strings.size)} · " +
+                    "${ChordTheory.displayName(config.rootPc, config.chord, config.useFlats)} · " +
+                    chordNotesText()
             ViewMode.FREE -> "${instrumentLabel(config.tuning.strings.size)} · Explora el mástil"
             ViewMode.IMPROV -> "${instrumentLabel(config.tuning.strings.size)} · Progresión"
         }
@@ -305,8 +339,10 @@ class MainActivity : AppCompatActivity() {
                 "Mástil de $instrumentText. Escala ${config.scale.name} en " +
                     Pitch.name(config.rootPc, config.useFlats)
             ViewMode.CHORD ->
-                "Mástil de $instrumentText. Acorde ${config.chord.name} en " +
-                    Pitch.name(config.rootPc, config.useFlats)
+                "Mástil de $instrumentText. Acorde " +
+                    "${Pitch.name(config.rootPc, config.useFlats)}" +
+                    "${config.chord.symbol} " +
+                    "(${ChordTheory.displayName(config.rootPc, config.chord, config.useFlats)})"
             ViewMode.FREE -> "Mástil de $instrumentText. Modo libre"
             ViewMode.IMPROV -> "Mástil de $instrumentText. Improvisación"
         }
@@ -314,7 +350,7 @@ class MainActivity : AppCompatActivity() {
         binding.menuButton.contentDescription = getString(R.string.back_to_menu)
         binding.scaleButton.text = when (config.mode) {
             ViewMode.SCALE -> config.scale.name
-            ViewMode.CHORD -> config.chord.name
+            ViewMode.CHORD -> getString(R.string.chord_picker_title)
             ViewMode.FREE -> "Sin colores"
             ViewMode.IMPROV -> "Progresión"
         }
@@ -362,7 +398,29 @@ class MainActivity : AppCompatActivity() {
                 "${Pitch.name(chord.rootPc, config.useFlats)} ${chord.quality.name}"
             }
         }
-        refreshSoundProfile()
+        audioSession.refresh()
+    }
+
+    private fun chordTitleText(): CharSequence {
+        val symbol = Pitch.name(config.rootPc, config.useFlats) + config.chord.symbol
+        val solfege = Pitch.solfegeName(config.rootPc, config.useFlats)
+        return SpannableStringBuilder(symbol).apply {
+            append("  ")
+            val start = length
+            append(solfege)
+            setSpan(
+                RelativeSizeSpan(0.62f),
+                start,
+                length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            setSpan(
+                ForegroundColorSpan(getColor(R.color.text_secondary)),
+                start,
+                length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
     }
 
     private fun buildChordsLabel(chords: List<HarmonicChord>): CharSequence {
@@ -397,7 +455,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showRootMenu(anchor: View) {
-        showLabeledMenu(anchor, (0..11).toList(), { pitchClass -> Pitch.name(pitchClass, config.useFlats) }) { pitchClass ->
+        showLabeledMenu(
+            anchor,
+            (0..11).toList(),
+            { pitchClass ->
+                val name = Pitch.name(pitchClass, config.useFlats)
+                val solfege = Pitch.solfegeName(pitchClass, config.useFlats)
+                "$name · $solfege"
+            }
+        ) { pitchClass ->
             updateConfig(
                 config.copy(
                     rootPc = pitchClass,
@@ -420,80 +486,18 @@ class MainActivity : AppCompatActivity() {
             Menu.NONE,
             3,
             3,
-            getString(R.string.sound_profile_value, soundProfileLabel())
+            getString(R.string.sound_profile_value, soundProfileLabel(this, audioSession.profile))
         )
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 0 -> showInstrumentDialog()
                 1 -> anchor.post { showTuningMenu(anchor) }
                 2 -> toggleAccidental()
-                3 -> soundProfileDialog.show(soundProfile)
+                3 -> soundProfileDialog.show(audioSession.profile)
             }
             true
         }
         popup.show()
-    }
-
-    private fun soundProfileLabel(profile: SoundProfile = soundProfile): String =
-        when (profile.kind) {
-            SoundKind.SYNTHETIC -> getString(R.string.sound_synthetic)
-            SoundKind.BUNDLED -> SoundFontCatalog.find(profile.id)?.let {
-                getString(it.labelRes)
-            } ?: profile.id
-            SoundKind.IMPORTED -> getString(
-                R.string.sound_imported,
-                profile.id.removeSuffix(".sf2")
-            )
-        }
-
-    private fun applySoundProfile(profile: SoundProfile) {
-        soundProfile = profile
-        settingsRepository.saveSoundProfile(profile)
-        loadedSoundProfile = null
-        loadingSoundProfile = null
-        failedSoundProfile = null
-        synth.setSoundFont(null)
-        refreshSoundProfile()
-    }
-
-    private fun refreshSoundProfile() {
-        val family = if (isBass()) SoundFontFamily.BASS else SoundFontFamily.GUITAR
-        val resolved = SoundFontCatalog.resolve(soundProfile, family)
-        if (resolved != soundProfile) {
-            soundProfile = resolved
-            settingsRepository.saveSoundProfile(resolved)
-        }
-        if (soundProfile.kind == SoundKind.SYNTHETIC) {
-            if (loadedSoundProfile != null || loadingSoundProfile != null) {
-                synth.setSoundFont(null)
-                loadedSoundProfile = null
-                loadingSoundProfile = null
-            }
-            return
-        }
-        if (loadedSoundProfile == soundProfile ||
-            loadingSoundProfile == soundProfile ||
-            failedSoundProfile == soundProfile
-        ) {
-            return
-        }
-        val target = soundProfile
-        synth.setSoundFont(null)
-        loadingSoundProfile = target
-        soundFontRepository.load(target) { font ->
-            if (loadingSoundProfile == target) loadingSoundProfile = null
-            if (isFinishing || isDestroyed) return@load
-            if (soundProfile != target) return@load
-            if (font != null) {
-                synth.setSoundFont(font)
-                loadedSoundProfile = target
-                failedSoundProfile = null
-            } else {
-                loadedSoundProfile = null
-                failedSoundProfile = target
-                Toast.makeText(this, R.string.sound_load_failed, Toast.LENGTH_SHORT).show()
-            }
-        }
     }
 
     private fun importSoundFont(uri: Uri) {
@@ -506,7 +510,7 @@ class MainActivity : AppCompatActivity() {
             if (isFinishing || isDestroyed) return@importFont
             val fileName = result.getOrNull()
             if (fileName != null) {
-                applySoundProfile(SoundProfile.imported(fileName))
+                audioSession.select(SoundProfile.imported(fileName))
                 Toast.makeText(
                     this,
                     getString(R.string.sound_import_success, fileName),
@@ -562,18 +566,31 @@ class MainActivity : AppCompatActivity() {
         when (config.mode) {
             ViewMode.SCALE -> showScaleDialog()
 
-            ViewMode.CHORD -> showLabeledMenu(anchor, Chords.all, { it.name }) { chord ->
-                updateConfig(
-                    config.copy(
-                        chord = chord,
-                        chordPattern = null,
-                        chordPatternStartFret = null
-                    )
-                )
-                binding.root.post { chordGuideController.show() }
-            }
+            ViewMode.CHORD -> showChordPicker()
 
             ViewMode.FREE, ViewMode.IMPROV -> Unit
+        }
+    }
+
+    private fun showChordPicker() {
+        chordPickerDialog.show(
+            title = getString(R.string.chord_picker_title),
+            initialRoot = config.rootPc,
+            initialQuality = config.chord,
+            initialBassPc = null,
+            positive = getString(R.string.apply)
+        ) { chord ->
+            updateConfig(
+                config.copy(
+                    rootPc = chord.rootPc,
+                    chord = chord.quality,
+                    chordPattern = null,
+                    chordPatternStartFret = null
+                )
+            )
+            binding.root.post {
+                if (!isFinishing) chordGuideController.show()
+            }
         }
     }
 
@@ -683,23 +700,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun strumChord() {
-        stopStrum()
+        chordAudition.play(binding.fretboard.currentChordFormationPositions())
+    }
 
-        val positions = binding.fretboard.currentChordFormationPositions()
-        if (positions.isEmpty()) return
-
-        val steps = positions.map { (stringIndex, fret) ->
-            NoteStep(
-                stringIndex = stringIndex,
-                fret = fret,
-                midi = config.tuning.strings[stringIndex].openMidi + fret
-            )
-        }
-        strumPlayer.play(steps, STRUM_STEP_MS)
+    private fun playChordPreview(chord: SongChord) {
+        chordAudition.play(chord)
     }
 
     private fun stopStrum() {
-        strumPlayer.stop()
+        chordAudition.stop()
     }
 
     private fun toggleAccidental() {
@@ -716,7 +725,6 @@ class MainActivity : AppCompatActivity() {
         const val EXTRA_OPEN_CIRCLE = "extra_open_circle"
 
         private const val SEQUENCE_STEP_MS = 230L
-        private const val STRUM_STEP_MS = 70L
     }
 }
 

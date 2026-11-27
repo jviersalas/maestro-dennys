@@ -30,6 +30,13 @@
   Improvisación o Afinación, y puedes volver a él desde cualquier módulo.
 - **Módulos de aprendizaje**: panel con portadas propias, acceso directo a cada
   sección y botón para cambiar de instrumento sin reiniciar el recorrido.
+- **Cancionero**: guarda canciones con sus partes (verso, coro, puente…),
+  cuadrícula de compases, letra opcional, repetición de partes (`×N`) y un panel
+  de guía con el diagrama del acorde seleccionado. Durante la reproducción cada
+  acorde suena una vez y se mantiene durante su parte del compás, con
+  desplazamiento automático para mantener visible el compás actual y el
+  siguiente. Incluye canciones de ejemplo listas para abrir y archivos
+  `.MDennys` para compartirlas entre usuarios.
 - **Improvisación más completa**: varias progresiones guardadas por instrumento,
   metrónomo con acento, capas independientes de escala/acorde/colores/grados,
   tónica y escala configurables, y la posibilidad de tocar el mástil para
@@ -65,6 +72,7 @@
 | **Acordes** | 24 tipos de acorde |
 | **Improvisación** | 40–220 BPM · progresiones guardadas · metrónomo |
 | **Progresiones guiadas** | 13 progresiones por género · transposición libre |
+| **Cancionero** | Canciones con partes, bloques de acordes y reproducción |
 | **Sonido** | 2 SF2 incluidos (guitarra/bajo) + importación |
 | **Tests** | Dominio, audio, geometría del mástil y playback |
 | **CI** | GitHub Actions (tests + lint + build) |
@@ -145,7 +153,11 @@ Se dibujan las notas del acorde, su formación y sus grados. En guitarra puedes
 | **Extensiones** | 6, m6, add9, 9, m9, Maj9 |
 
 Cada acorde muestra su **cifrado** (C, Am, G7…), su **nombre completo** y sus
-**notas reales** coloreadas por función armónica.
+**notas reales** coloreadas por función armónica. El selector de acordes usa el
+mismo menú amigable del Cancionero: cuadrícula de notas y tipos, vista previa
+con sonido y lectura en solfeo. Las notas se muestran con su cifra y su nombre
+en pequeño (por ejemplo **G** con **Sol**), tanto en el encabezado como en
+cada opción del selector.
 
 ---
 
@@ -234,7 +246,8 @@ sonido cae automáticamente al sintetizador.
   - `Guitar Acoustic` (guitarra acústica, dominio público).
   - `Bass YR` (bajo eléctrico).
 - **Selector**: Ajustes → **Sonido**, con el sintético, los SF2 incluidos para
-  el instrumento actual y los SF2 importados.
+  el instrumento actual y los SF2 importados. También está disponible en
+  **Cancionero → Opciones → Sonido**.
 - **Importación**: desde el mismo diálogo se puede cargar cualquier `.sf2` del
   dispositivo; se copia a la carpeta privada de la app y queda disponible para
   las próximas sesiones.
@@ -251,6 +264,20 @@ sonido cae automáticamente al sintetizador.
   - lectura de Hz y cents, tolerancia de ±5 cents e indicador **EN TONO**.
 - **Audio** de cuerda pulsada (Karplus–Strong) y sampler SF2 opcional para
   escuchar cada nota, con modo bajo.
+- **Cancionero**: lista de canciones con sus partes (verso, coro, puente…),
+  cuadrícula de compases editable, letra opcional, repetición de partes,
+  diagrama del acorde como guía y reproducción donde cada acorde suena una vez
+  y se mantiene durante su parte del compás. Incluye por defecto “Hey Jude” y
+  “Yesterday” de The Beatles.
+  - **Compartir e importar**: desde **Opciones → Compartir .MDennys** se genera
+    un archivo portable con la canción, y el botón **Importar** del cancionero
+    carga una o varias canciones desde ese formato. El archivo `.MDennys` es
+    JSON con la versión del formato, los datos de la canción y sus partes,
+    compases y acordes; se puede enviar por cualquier medio y abrir en otro
+    dispositivo con DGuitar.
+  - **Reproducción fluida**: durante Play solo se actualiza el acorde activo,
+    las pestañas y el desplazamiento; la cuadrícula completa no se reconstruye
+    en cada cambio, incluso en canciones de más de 100 compases.
 - **Secuencia** de escala (subida y bajada) y **púa** de acordes.
 - **Patrones CAGED** seleccionables desde el mástil.
 - **Colores por grado** y **badges de grados** para reconocer la función de cada
@@ -266,8 +293,25 @@ El proyecto incluye tests JVM para la lógica que no depende de Android:
 - posiciones, secuencias y patrones CAGED,
 - círculo armónico y codecs de preferencias,
 - improvisación, línea de tiempo, playback y reproductor de secuencias,
+- cancionero, pasos de canción, playback y codec `.MDennys`,
 - geometría del mástil, voicings y detección de cejillas,
 - analizador de tono (YIN), afinador y resolución de cuerda.
+
+### Módulos compartidos
+
+La UI y el audio reutilizan piezas pequeñas con implementación profunda:
+
+- `ChordSpec`: identidad y lectura común de `SongChord`, `ImprovChord`,
+  `HarmonicChord` y `ModulationChord`.
+- `ChordPickerPanel`: cuadrícula de notas, tipos, bajo opcional y vista previa;
+  lo usan el Cancionero, el módulo Acordes y el editor de Improvisación.
+- `AudioSession`: ciclo de vida del sintetizador, resolución y carga de SF2,
+  persistencia del perfil y protección contra cargas obsoletas.
+- `PlaybackTimeline<T>`: temporización, progreso y finalización compartidos por
+  el Cancionero y la Improvisación.
+- `ChordAudition` y `ChordNotes`: convierten acordes o voicings en notas MIDI y
+  gestionan el silencio previo y la púa.
+- `LearningModuleCatalog`: orden y datos de los módulos, con test de regresión.
 
 Comandos útiles:
 
@@ -337,6 +381,7 @@ app/src/main/java/apk/mavier/dguitar/
     ├── learning/        Panel de módulos de aprendizaje
     ├── main/            Mástil, escalas, acordes y diálogo del círculo armónico
     ├── improvisation/   Progresiones, ViewModel, playback y arpegio
+    ├── songbook/        Cancionero, partes, acordes y reproducción
     ├── tuner/           Afinador
     ├── onboarding/      Splash y selección de instrumento
     └── ui/              Vistas del mástil, geometría y modelo de render

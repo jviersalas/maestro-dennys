@@ -9,10 +9,10 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.random.Random
 
-class GuitarSynth {
+class GuitarSynth : AudioOutput {
 
     @Volatile
-    var bassMode: Boolean = false
+    override var bassMode: Boolean = false
 
     @Volatile
     private var soundFont: Sf2SoundFont? = null
@@ -43,7 +43,7 @@ class GuitarSynth {
     private val voices = CopyOnWriteArrayList<PlayableVoice>()
 
     @Synchronized
-    fun start() {
+    override fun start() {
         if (running) return
 
         val minBuffer = AudioTrack.getMinBufferSize(
@@ -99,7 +99,7 @@ class GuitarSynth {
     }
 
     @Synchronized
-    fun stop() {
+    override fun stop() {
         running = false
         val worker = thread
         thread = null
@@ -117,7 +117,7 @@ class GuitarSynth {
         track = null
     }
 
-    fun pluck(stringIndex: Int, midi: Int) {
+    override fun pluck(stringIndex: Int, midi: Int) {
         if (!running) return
         val isBass = bassMode
         val font = soundFont
@@ -146,6 +146,15 @@ class GuitarSynth {
         soundFontBank = bank
         soundFontProgram = program
         voices.clear()
+    }
+
+    /** Stops every currently ringing note without stopping the audio engine. */
+    override fun silence() {
+        voices.clear()
+    }
+
+    override fun loadSoundFont(font: Sf2SoundFont?) {
+        setSoundFont(font)
     }
 
     private fun trimVoices(maxSize: Int) {

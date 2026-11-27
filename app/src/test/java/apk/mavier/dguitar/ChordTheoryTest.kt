@@ -61,6 +61,15 @@ class ChordTheoryTest {
     }
 
     @Test
+    fun gMajorShowsLetterAndSolfegeReading() {
+        assertEquals("Sol", Pitch.solfegeName(7, useFlats = false))
+        assertEquals(
+            "Sol mayor",
+            ChordTheory.displayName(7, Chords.MAJOR, useFlats = false)
+        )
+    }
+
+    @Test
     fun solfegeUsesAccidentalsFromPreference() {
         assertEquals("Sib", Pitch.solfegeName(10, useFlats = true))
         assertEquals("La#", Pitch.solfegeName(10, useFlats = false))

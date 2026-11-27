@@ -38,6 +38,11 @@
     <color name="circle_sharp">#F0A868</color>
     <color name="circle_flat">#6FB3D9</color>
 
+    <!-- Songbook grid -->
+    <color name="song_cell_background">#2B2112</color>
+    <color name="song_cell_border">#4E3A1A</color>
+    <color name="song_cell_selected">#4A3510</color>
+
     <!-- Modulation -->
     <color name="modulation_origin">#3F8FD6</color>
     <color name="modulation_destination">#E8833A</color>

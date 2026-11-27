@@ -5,6 +5,7 @@ import apk.mavier.dguitar.di.AppContainer
 import apk.mavier.dguitar.domain.di.DependencyProvider
 import apk.mavier.dguitar.domain.repository.ImprovisationRepository
 import apk.mavier.dguitar.domain.repository.SettingsRepository
+import apk.mavier.dguitar.domain.repository.SongbookRepository
 import apk.mavier.dguitar.domain.repository.SoundFontRepository
 import apk.mavier.dguitar.domain.usecase.BuildGuidedProgressionUseCase
 import apk.mavier.dguitar.domain.usecase.BuildHarmonicCircleUseCase
@@ -21,6 +22,9 @@ class DGuitarApp : Application(), DependencyProvider {
 
     override val improvisationRepository: ImprovisationRepository
         get() = container.improvisationRepository
+
+    override val songbookRepository: SongbookRepository
+        get() = container.songbookRepository
 
     override val harmonicCircleUseCase: BuildHarmonicCircleUseCase
         get() = container.harmonicCircleUseCase

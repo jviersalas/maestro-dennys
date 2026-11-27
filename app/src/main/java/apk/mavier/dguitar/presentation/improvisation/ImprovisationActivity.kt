@@ -52,8 +52,7 @@ import apk.mavier.dguitar.domain.model.Pitch
 import apk.mavier.dguitar.domain.model.ScaleMode
 import apk.mavier.dguitar.domain.model.Scales
 import apk.mavier.dguitar.domain.model.SequencePositions
-import apk.mavier.dguitar.domain.model.SoundKind
-import apk.mavier.dguitar.domain.model.SoundProfile
+import apk.mavier.dguitar.domain.model.SongChord
 import apk.mavier.dguitar.domain.model.Tuning
 import apk.mavier.dguitar.domain.model.Tunings
 import apk.mavier.dguitar.domain.model.ViewMode
@@ -62,10 +61,10 @@ import apk.mavier.dguitar.domain.repository.SettingsRepository
 import apk.mavier.dguitar.domain.repository.SoundFontRepository
 import apk.mavier.dguitar.domain.usecase.BuildGuidedProgressionUseCase
 import apk.mavier.dguitar.domain.usecase.GetImprovisationStepsUseCase
+import apk.mavier.dguitar.presentation.common.AudioSession
+import apk.mavier.dguitar.presentation.common.ChordPickerPanel
 import apk.mavier.dguitar.presentation.common.GuidedProgressionsDialogController
 import apk.mavier.dguitar.presentation.common.HandlerScheduler
-import apk.mavier.dguitar.presentation.common.SoundFontCatalog
-import apk.mavier.dguitar.presentation.common.SoundFontFamily
 import apk.mavier.dguitar.presentation.common.instrumentLabel
 import apk.mavier.dguitar.presentation.learning.LearningMenuActivity
 import apk.mavier.dguitar.presentation.theme.ChordColorProvider
@@ -76,7 +75,7 @@ import java.util.UUID
 class ImprovisationActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityImprovisationBinding
-    private var synth: GuitarSynth? = null
+    private lateinit var audioSession: AudioSession
     private lateinit var tuning: Tuning
     private lateinit var settingsRepository: SettingsRepository
     private lateinit var improvisationRepository: ImprovisationRepository
@@ -104,10 +103,6 @@ class ImprovisationActivity : AppCompatActivity() {
     private var scaleRootPc = 0
     private var scaleRootAuto = true
     private var scale: ScaleMode = Scales.PENTATONIC_MINOR
-    private var soundProfile = SoundProfile.bundledGuitar
-    private var loadedSoundProfile: SoundProfile? = null
-    private var loadingSoundProfile: SoundProfile? = null
-    private var failedSoundProfile: SoundProfile? = null
     private var timelineCache: ImprovTimeline? = null
     private lateinit var playbackController: ImprovPlaybackController
 
@@ -143,7 +138,6 @@ class ImprovisationActivity : AppCompatActivity() {
         isGuitar = tuning.strings.size >= 6
         instrument = if (isGuitar) ImprovInstrument.GUITAR else ImprovInstrument.BASS
         useFlats = config.useFlats
-        soundProfile = settingsRepository.loadSoundProfile()
 
         viewModel = ViewModelProvider(
             this,
@@ -185,11 +179,25 @@ class ImprovisationActivity : AppCompatActivity() {
 
         binding.barProgress.max = PROGRESS_MAX
 
-        val guitarSynth = GuitarSynth().apply { bassMode = !isGuitar }
-        synth = guitarSynth
-        refreshSoundProfile()
+        audioSession = AudioSession(
+            output = GuitarSynth(),
+            settings = settingsRepository,
+            soundFonts = soundFontRepository,
+            guitar = { isGuitar },
+            isActive = { !isFinishing && !isDestroyed },
+            onLoadFailed = {
+                Toast.makeText(
+                    this,
+                    R.string.sound_load_failed,
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        ).apply {
+            bassMode = !isGuitar
+        }
+        audioSession.refresh()
         binding.improvFretboard.onNotePlayed = { stringIndex, midi ->
-            guitarSynth.pluck(stringIndex, midi)
+            audioSession.pluck(stringIndex, midi)
         }
         toneGenerator = runCatching {
             ToneGenerator(AudioManager.STREAM_MUSIC, METRONOME_VOLUME)
@@ -289,20 +297,7 @@ class ImprovisationActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        val family = if (isGuitar) SoundFontFamily.GUITAR else SoundFontFamily.BASS
-        val current = SoundFontCatalog.resolve(
-            settingsRepository.loadSoundProfile(),
-            family
-        )
-        if (current != soundProfile) {
-            soundProfile = current
-            loadedSoundProfile = null
-            loadingSoundProfile = null
-            failedSoundProfile = null
-            synth?.setSoundFont(null)
-        }
-        synth?.start()
-        refreshSoundProfile()
+        audioSession.start()
         if (pendingGuidedAutoPlay) {
             pendingGuidedAutoPlay = false
             binding.root.post { if (!isFinishing) startPlayback() }
@@ -312,7 +307,7 @@ class ImprovisationActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         stopPlayback()
-        synth?.stop()
+        audioSession.stop()
     }
 
     override fun onDestroy() {
@@ -392,7 +387,8 @@ class ImprovisationActivity : AppCompatActivity() {
         binding.scaleRootButton.text =
             getString(R.string.tonic_value, Pitch.name(scaleRootPc, useFlats))
         binding.scaleRootButton.contentDescription =
-            "Tónica de la escala ${Pitch.name(scaleRootPc, useFlats)}"
+            "Tónica de la escala ${Pitch.name(scaleRootPc, useFlats)} " +
+                "(${Pitch.solfegeName(scaleRootPc, useFlats)})"
         binding.scaleButton.text = scale.name
         binding.scaleButton.contentDescription = "Escala ${scale.name}"
         binding.showScaleButton.isSelected = showScale
@@ -1006,26 +1002,16 @@ class ImprovisationActivity : AppCompatActivity() {
         onPicked: (ImprovChord) -> Unit
     ) {
         val dialogBinding = DialogImprovChordBinding.inflate(layoutInflater)
-        val rootNames = (0..11).map { Pitch.name(it, useFlats) }
-        dialogBinding.rootSpinner.adapter = ArrayAdapter(
-            this,
-            android.R.layout.simple_spinner_item,
-            rootNames
-        ).apply {
-            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        }
-        dialogBinding.rootSpinner.setSelection(initial.rootPc.coerceIn(0, 11))
-
-        val qualityNames = Chords.all.map { it.name }
-        dialogBinding.qualitySpinner.adapter = ArrayAdapter(
-            this,
-            android.R.layout.simple_spinner_item,
-            qualityNames
-        ).apply {
-            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        }
-        val qualityIndex = Chords.all.indexOf(initial.quality).coerceAtLeast(0)
-        dialogBinding.qualitySpinner.setSelection(qualityIndex)
+        val chordPanel = ChordPickerPanel(
+            activity = this,
+            binding = dialogBinding.chordPicker,
+            useFlats = useFlats,
+            allowBass = false,
+            initial = SongChord(initial.rootPc, initial.quality),
+            onPreview = { chord ->
+                playGuideNote(ImprovChord(chord.rootPc, chord.quality))
+            }
+        )
 
         dialogBinding.principalSwitch.isChecked = initial.principalOnly
 
@@ -1060,10 +1046,6 @@ class ImprovisationActivity : AppCompatActivity() {
             .setTitle(title)
             .setView(dialogBinding.root)
             .setPositiveButton(positive) { _, _ ->
-                val root = dialogBinding.rootSpinner.selectedItemPosition.coerceIn(0, 11)
-                val quality = Chords.all.getOrNull(
-                    dialogBinding.qualitySpinner.selectedItemPosition
-                ) ?: Chords.MAJOR
                 val bars = barsOptions.getOrNull(
                     dialogBinding.barsSpinner.selectedItemPosition
                 ) ?: ImprovChord.DEFAULT_BARS_PER_CHORD
@@ -1072,8 +1054,8 @@ class ImprovisationActivity : AppCompatActivity() {
                 ) ?: ImprovChord.DEFAULT_HITS_PER_BAR
                 onPicked(
                     ImprovChord(
-                        rootPc = root,
-                        quality = quality,
+                        rootPc = chordPanel.selection.rootPc,
+                        quality = chordPanel.selection.quality,
                         principalOnly = dialogBinding.principalSwitch.isChecked,
                         hitsPerBar = hits,
                         barsPerChord = bars
@@ -1112,7 +1094,13 @@ class ImprovisationActivity : AppCompatActivity() {
         stopPlayback()
         val popup = PopupMenu(this, anchor)
         (0..11).forEach { pitchClass ->
-            popup.menu.add(Menu.NONE, pitchClass, pitchClass, Pitch.name(pitchClass, useFlats))
+            popup.menu.add(
+                Menu.NONE,
+                pitchClass,
+                pitchClass,
+                "${Pitch.name(pitchClass, useFlats)} · " +
+                    Pitch.solfegeName(pitchClass, useFlats)
+            )
         }
         popup.setOnMenuItemClickListener { item ->
             if (item.itemId in 0..11) {
@@ -1270,7 +1258,6 @@ class ImprovisationActivity : AppCompatActivity() {
 
     private fun playArpeggio() {
         if (isGuitar) return
-        val guitarSynth = synth ?: return
         arpeggioRunnable?.let { arpeggioHandler.removeCallbacks(it) }
         arpeggioRunnable = null
         val bar = bars().getOrNull(activeBar) ?: return
@@ -1299,7 +1286,7 @@ class ImprovisationActivity : AppCompatActivity() {
                 if (!playing) return
                 val (stringIndex, fret) = positions[hit % positions.size]
                 val string = tuning.strings.getOrNull(stringIndex) ?: return
-                guitarSynth.pluck(stringIndex, string.openMidi + fret)
+                audioSession.pluck(stringIndex, string.openMidi + fret)
                 binding.improvFretboard.highlightNote(stringIndex, fret, reveal = false)
                 hit++
                 if (hit < hits) {
@@ -1330,7 +1317,6 @@ class ImprovisationActivity : AppCompatActivity() {
 
     private fun playGuideNote(chord: ImprovChord) {
         if (!isGuitar) return
-        val guitarSynth = synth ?: return
         val position = SequencePositions.lowestRootPosition(
             chord.rootPc,
             tuning,
@@ -1338,7 +1324,7 @@ class ImprovisationActivity : AppCompatActivity() {
         ) ?: return
         val (stringIndex, fret) = position.stringIndex to position.fret
         val string = tuning.strings.getOrNull(stringIndex) ?: return
-        guitarSynth.pluck(stringIndex, string.openMidi + fret)
+        audioSession.pluck(stringIndex, string.openMidi + fret)
         binding.improvFretboard.highlightNote(stringIndex, fret, reveal = false)
     }
 
@@ -1376,47 +1362,6 @@ class ImprovisationActivity : AppCompatActivity() {
 
     private fun syncScaleRootFromProgression() {
         if (scaleRootAuto) scaleRootPc = firstChordRoot()
-    }
-
-    private fun refreshSoundProfile() {
-        val guitarSynth = synth ?: return
-        val family = if (isGuitar) SoundFontFamily.GUITAR else SoundFontFamily.BASS
-        val resolved = SoundFontCatalog.resolve(soundProfile, family)
-        if (resolved != soundProfile) {
-            soundProfile = resolved
-            settingsRepository.saveSoundProfile(resolved)
-        }
-        if (soundProfile.kind == SoundKind.SYNTHETIC) {
-            if (loadedSoundProfile != null || loadingSoundProfile != null) {
-                guitarSynth.setSoundFont(null)
-                loadedSoundProfile = null
-                loadingSoundProfile = null
-            }
-            return
-        }
-        if (loadedSoundProfile == soundProfile ||
-            loadingSoundProfile == soundProfile ||
-            failedSoundProfile == soundProfile
-        ) {
-            return
-        }
-        val target = soundProfile
-        guitarSynth.setSoundFont(null)
-        loadingSoundProfile = target
-        soundFontRepository.load(target) { font ->
-            if (loadingSoundProfile == target) loadingSoundProfile = null
-            if (isFinishing || isDestroyed) return@load
-            if (soundProfile != target) return@load
-            if (font != null) {
-                guitarSynth.setSoundFont(font)
-                loadedSoundProfile = target
-                failedSoundProfile = null
-            } else {
-                loadedSoundProfile = null
-                failedSoundProfile = target
-                Toast.makeText(this, R.string.sound_load_failed, Toast.LENGTH_SHORT).show()
-            }
-        }
     }
 
     private fun dp(value: Int): Int =

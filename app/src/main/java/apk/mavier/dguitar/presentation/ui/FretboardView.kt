@@ -1,6 +1,7 @@
 package apk.mavier.dguitar.presentation.ui
 
 import android.content.Context
+import android.animation.ValueAnimator
 import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Paint
@@ -13,6 +14,7 @@ import android.view.MotionEvent
 import android.view.VelocityTracker
 import android.view.View
 import android.view.ViewConfiguration
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.OverScroller
 import apk.mavier.dguitar.domain.model.CagedPatternOccurrence
 import apk.mavier.dguitar.domain.model.ChordTheory
@@ -22,6 +24,7 @@ import apk.mavier.dguitar.domain.model.ChordVoicingResolver
 import apk.mavier.dguitar.domain.model.VoicingKey
 import apk.mavier.dguitar.presentation.theme.ChordColorProvider
 import apk.mavier.dguitar.domain.model.FretboardConfig
+import apk.mavier.dguitar.domain.model.HarmonicCircle
 import apk.mavier.dguitar.domain.model.ImprovChord
 import apk.mavier.dguitar.domain.model.Improvisation
 import apk.mavier.dguitar.presentation.theme.NoteColorProvider
@@ -53,6 +56,7 @@ class FretboardView @JvmOverloads constructor(
             improvLines = emptyList()
             improvLinesConfig = null
             ensureGeometry()
+            updateChordPulse()
             invalidate()
         }
 
@@ -205,9 +209,14 @@ class FretboardView @JvmOverloads constructor(
     private var playedString = -1
     private var playedFret = -1
 
+    private var chordPulseAlpha = 1f
+    private var chordPulseAnimator: ValueAnimator? = null
+
     companion object {
         const val FRET_COUNT = 22
         private val INLAY_FRETS = intArrayOf(3, 5, 7, 9, 15, 17, 19, 21)
+        private const val CHORD_PULSE_MIN_ALPHA = 0.68f
+        private const val CHORD_PULSE_DURATION_MS = 1_100L
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -578,7 +587,7 @@ class FretboardView @JvmOverloads constructor(
         chordRingPaint.strokeWidth = dp(1.35f)
         if (hits.size == 1) {
             chordRingPaint.color = hits[0].color
-            chordRingPaint.alpha = 165
+            chordRingPaint.alpha = pulsedAlpha(165)
             canvas.drawCircle(x, y, radius, chordRingPaint)
             return
         }
@@ -588,7 +597,7 @@ class FretboardView @JvmOverloads constructor(
         val gap = 12f
         for (index in hits.indices) {
             chordRingPaint.color = hits[index].color
-            chordRingPaint.alpha = 150
+            chordRingPaint.alpha = pulsedAlpha(150)
             val start = -90f + index * sweep + gap / 2f
             canvas.drawArc(ringRect, start, sweep - gap, false, chordRingPaint)
         }
@@ -706,7 +715,7 @@ class FretboardView @JvmOverloads constructor(
 
         markerBorderPaint.color = hits.first().color
         markerBorderPaint.strokeWidth = dp(1.8f)
-        markerBorderPaint.alpha = 235
+        markerBorderPaint.alpha = pulsedAlpha(235)
         canvas.drawCircle(x, y, radius, markerBorderPaint)
 
         noteTextPaint.color = 0xFFF3EFFA.toInt()
@@ -787,14 +796,16 @@ class FretboardView @JvmOverloads constructor(
                                 } else {
                                     NoteColorProvider.NEUTRAL_FILL
                                 }
-                            drawNote(
-                                canvas, x, y, pitchClass, cfg, fill,
-                                showText = true,
-                                radiusScale = 1f,
-                                label = ChordTheory.noteNameForPitchClass(
-                                    cfg.rootPc, cfg.chord, cfg.useFlats, pitchClass, false
+                                val chordPulse = if (hits.isNotEmpty()) chordPulseAlpha else 1f
+                                drawNote(
+                                    canvas, x, y, pitchClass, cfg, fill,
+                                    showText = true,
+                                    radiusScale = 1f,
+                                    alphaScale = chordPulse,
+                                    label = ChordTheory.noteNameForPitchClass(
+                                        cfg.rootPc, cfg.chord, cfg.useFlats, pitchClass, false
+                                    )
                                 )
-                            )
                             } else {
                                 drawDimmedNote(canvas, x, y, pitchClass, cfg)
                             }
@@ -896,16 +907,21 @@ class FretboardView @JvmOverloads constructor(
         fill: Int,
         showText: Boolean,
         radiusScale: Float,
+        alphaScale: Float = 1f,
         label: String? = null
     ) {
         val radius = noteRadius * radiusScale
         val attenuated = radiusScale < 1f
 
         markerPaint.color = fill
-        markerPaint.alpha = if (attenuated) 90 else 255
+        markerPaint.alpha = ((if (attenuated) 90 else 255) * alphaScale)
+            .toInt()
+            .coerceIn(0, 255)
         canvas.drawCircle(x, y, radius, markerPaint)
 
-        markerBorderPaint.alpha = if (attenuated) 40 else 90
+        markerBorderPaint.alpha = ((if (attenuated) 40 else 90) * alphaScale)
+            .toInt()
+            .coerceIn(0, 255)
         canvas.drawCircle(x, y, radius, markerBorderPaint)
 
         if (!showText) return
@@ -940,12 +956,12 @@ class FretboardView @JvmOverloads constructor(
         val color = ChordColorProvider.baseColor(chord.rootPc)
 
         markerPaint.color = color
-        markerPaint.alpha = if (dimmed) 65 else 245
+        markerPaint.alpha = if (dimmed) pulsedAlpha(65) else pulsedAlpha(245)
         canvas.drawCircle(x, y, radius, markerPaint)
 
         markerBorderPaint.color = color
         markerBorderPaint.strokeWidth = dp(1.6f)
-        markerBorderPaint.alpha = if (dimmed) 45 else 190
+        markerBorderPaint.alpha = if (dimmed) pulsedAlpha(45) else pulsedAlpha(190)
         canvas.drawCircle(x, y, radius, markerBorderPaint)
 
         noteTextPaint.color = if (dimmed) {
@@ -1052,7 +1068,11 @@ class FretboardView @JvmOverloads constructor(
                 else -> 0xFF1B1825.toInt()
             }
             openPaint.color = fill
-            openPaint.alpha = if (nextOpen) 70 else 255
+            openPaint.alpha = when {
+                activeOpen -> pulsedAlpha(255)
+                nextOpen -> pulsedAlpha(70)
+                else -> 255
+            }
             canvas.drawCircle(cx, y, noteRadius * 0.9f, openPaint)
 
             openTextPaint.color = when {
@@ -1304,7 +1324,67 @@ class FretboardView @JvmOverloads constructor(
         }
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        updateChordPulse()
+    }
+
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        updateChordPulse()
+    }
+
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        updateChordPulse()
+    }
+
+    private fun shouldPulseChords(): Boolean = when (config.mode) {
+        ViewMode.SCALE ->
+            config.circleDegrees.isNotEmpty() && HarmonicCircle.supports(config.scale)
+        ViewMode.IMPROV -> config.improvShowChord &&
+            (config.improvActive != null || config.improvNext != null)
+        else -> false
+    }
+
+    private fun updateChordPulse() {
+        if (isShown && shouldPulseChords()) {
+            startChordPulse()
+        } else {
+            stopChordPulse()
+        }
+    }
+
+    private fun startChordPulse() {
+        if (chordPulseAnimator != null) return
+        chordPulseAlpha = 1f
+        chordPulseAnimator = ValueAnimator.ofFloat(1f, CHORD_PULSE_MIN_ALPHA).apply {
+            duration = CHORD_PULSE_DURATION_MS
+            repeatMode = ValueAnimator.REVERSE
+            repeatCount = ValueAnimator.INFINITE
+            interpolator = AccelerateDecelerateInterpolator()
+            addUpdateListener {
+                chordPulseAlpha = it.animatedValue as Float
+                invalidate()
+            }
+            start()
+        }
+    }
+
+    private fun stopChordPulse() {
+        chordPulseAnimator?.cancel()
+        chordPulseAnimator = null
+        if (chordPulseAlpha != 1f) {
+            chordPulseAlpha = 1f
+            invalidate()
+        }
+    }
+
+    private fun pulsedAlpha(baseAlpha: Int): Int =
+        (baseAlpha * chordPulseAlpha).toInt().coerceIn(0, 255)
+
     override fun onDetachedFromWindow() {
+        stopChordPulse()
         super.onDetachedFromWindow()
         velocityTracker.recycle()
     }

@@ -11,11 +11,9 @@ enum class ModulationSignal { NEAR, MEDIUM, FAR }
 enum class NoteRelation { COMMON, ORIGIN_ONLY, DESTINATION_ONLY }
 
 data class ModulationChord(
-    val rootPc: Int,
-    val quality: ChordQuality
-) {
-    fun label(useFlats: Boolean): String = Pitch.name(rootPc, useFlats) + quality.symbol
-}
+    override val rootPc: Int,
+    override val quality: ChordQuality
+) : ChordSpec
 
 data class ModulationStep(
     val chord: ModulationChord,
@@ -25,14 +23,12 @@ data class ModulationStep(
     val belongsToOrigin: Boolean,
     val belongsToDestination: Boolean,
     val isChangePoint: Boolean
-) {
-    val rootPc: Int
+) : ChordSpec {
+    override val rootPc: Int
         get() = chord.rootPc
 
-    val quality: ChordQuality
+    override val quality: ChordQuality
         get() = chord.quality
-
-    fun label(useFlats: Boolean): String = chord.label(useFlats)
 }
 
 data class ModulationBridge(

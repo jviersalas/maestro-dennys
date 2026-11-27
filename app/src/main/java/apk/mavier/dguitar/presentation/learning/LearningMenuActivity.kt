@@ -18,6 +18,7 @@ import apk.mavier.dguitar.presentation.improvisation.ImprovisationActivity
 import apk.mavier.dguitar.presentation.main.MainActivity
 import apk.mavier.dguitar.presentation.modulation.ModulationActivity
 import apk.mavier.dguitar.presentation.onboarding.InstrumentActivity
+import apk.mavier.dguitar.presentation.songbook.SongbookActivity
 import apk.mavier.dguitar.presentation.tuner.TunerActivity
 import apk.mavier.dguitar.presentation.ui.applySystemBarInsets
 
@@ -53,44 +54,7 @@ class LearningMenuActivity : AppCompatActivity() {
             instrumentLabel(config.tuning.strings.size)
         )
 
-        val modules = listOf(
-            Module(
-                titleRes = R.string.module_chords,
-                descriptionRes = R.string.module_chords_desc,
-                imageRes = R.drawable.portadaacordes,
-                enabled = guitar
-            ) { openMain(ViewMode.CHORD) },
-            Module(
-                titleRes = R.string.module_scales,
-                descriptionRes = R.string.module_scales_desc,
-                imageRes = R.drawable.portadaescalas
-            ) { openMain(ViewMode.SCALE) },
-            Module(
-                titleRes = R.string.module_progression,
-                descriptionRes = R.string.module_progression_desc,
-                imageRes = R.drawable.portadaprogresion
-            ) { openMain(ViewMode.SCALE, openGuided = true) },
-            Module(
-                titleRes = R.string.module_improvisation,
-                descriptionRes = R.string.module_improvisation_desc,
-                imageRes = R.drawable.portadaimprovisacion
-            ) { openImprovisation() },
-            Module(
-                titleRes = R.string.module_quintas,
-                descriptionRes = R.string.module_quintas_desc,
-                imageRes = R.drawable.portadaquintas
-            ) { openCircleOfFifths() },
-            Module(
-                titleRes = R.string.module_modulation,
-                descriptionRes = R.string.module_modulation_desc,
-                imageRes = R.drawable.portadamodulacion
-            ) { openModulation() },
-            Module(
-                titleRes = R.string.module_tuner,
-                descriptionRes = R.string.module_tuner_desc,
-                imageRes = R.drawable.portadaafinacion
-            ) { openTuner() }
-        )
+        val modules = LearningModuleCatalog.modules(guitar)
 
         val row = binding.modulesRow
         row.removeAllViews()
@@ -112,7 +76,7 @@ class LearningMenuActivity : AppCompatActivity() {
             val flipCard = ModuleFlipCard(
                 binding = card,
                 enabled = module.enabled,
-                onOpen = module.onOpen,
+                onOpen = { open(module.destination) },
                 onDisabled = {
                     Toast.makeText(
                         this,
@@ -128,6 +92,20 @@ class LearningMenuActivity : AppCompatActivity() {
             )
             flipCards.add(flipCard)
             row.addView(card.root)
+        }
+    }
+
+    private fun open(destination: LearningDestination) {
+        when (destination) {
+            LearningDestination.MAIN_CHORDS -> openMain(ViewMode.CHORD)
+            LearningDestination.MAIN_SCALES -> openMain(ViewMode.SCALE)
+            LearningDestination.MAIN_GUIDED_PROGRESSION ->
+                openMain(ViewMode.SCALE, openGuided = true)
+            LearningDestination.IMPROVISATION -> openImprovisation()
+            LearningDestination.SONGBOOK -> openSongbook()
+            LearningDestination.CIRCLE_OF_FIFTHS -> openCircleOfFifths()
+            LearningDestination.MODULATION -> openModulation()
+            LearningDestination.TUNER -> openTuner()
         }
     }
 
@@ -152,6 +130,10 @@ class LearningMenuActivity : AppCompatActivity() {
         startActivity(Intent(this, ImprovisationActivity::class.java))
     }
 
+    private fun openSongbook() {
+        startActivity(Intent(this, SongbookActivity::class.java))
+    }
+
     private fun openTuner() {
         val config = settingsRepository.load()
         startActivity(
@@ -161,12 +143,4 @@ class LearningMenuActivity : AppCompatActivity() {
             }
         )
     }
-
-    private data class Module(
-        val titleRes: Int,
-        val descriptionRes: Int,
-        val imageRes: Int,
-        val enabled: Boolean = true,
-        val onOpen: () -> Unit
-    )
 }

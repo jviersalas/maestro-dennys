@@ -213,6 +213,7 @@ object ChordTheory {
         "dim7" -> "disminuido séptima"
         "m7b5" -> "semidisminuido"
         "aug" -> "aumentado"
+        "(#5)" -> "aumentado"
         "sus2" -> "suspendido 2"
         "sus4" -> "suspendido 4"
         "6" -> "sexta"
@@ -324,6 +325,19 @@ object ChordTheory {
             notesAnglo = notes.map { it.second }
         )
     }
+
+    /**
+     * String/fret positions for a chord voicing, ordered from the lowest string
+     * to the highest so callers can strum it directly.
+     */
+    fun positions(
+        rootPc: Int,
+        quality: ChordQuality,
+        tuning: Tuning
+    ): List<Pair<Int, Int>> =
+        voicing(rootPc, quality, tuning).frets.entries
+            .sortedByDescending { it.key }
+            .map { it.key to it.value }
 
     private data class Voicing(
         val frets: Map<Int, Int>,
